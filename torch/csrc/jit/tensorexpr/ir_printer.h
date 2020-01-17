@@ -1,29 +1,25 @@
 #pragma once
 
-#include <iostream>
-
 #include "torch/csrc/jit/tensorexpr/ir.h"
 #include "torch/csrc/jit/tensorexpr/ir_visitor.h"
-#include "torch/csrc/jit/tensorexpr/unique_name_manager.h"
+
+#include <ostream>
 
 namespace torch {
 namespace jit {
-namespace tensorexpr {
+namespace compiler {
 
-class TORCH_API IRPrinter : public IRVisitor {
+class IRPrinter : public IRVisitor {
  public:
-  explicit IRPrinter(std::ostream& os) : printer_os_(this, os) {}
-
+  IRPrinter(std::ostream&);
   void print(Expr);
   void print(Stmt);
   void visit(const Add* v) override;
   void visit(const Sub* v) override;
   void visit(const Mul* v) override;
   void visit(const Div* v) override;
-  void visit(const Mod* v) override;
   void visit(const Max* v) override;
   void visit(const Min* v) override;
-  void visit(const CompareSelect* v) override;
   void visit(const IntImm* v) override;
   void visit(const FloatImm* v) override;
   void visit(const Cast* v) override;
@@ -35,67 +31,14 @@ class TORCH_API IRPrinter : public IRVisitor {
   void visit(const Block* v) override;
   void visit(const Store* v) override;
   void visit(const Broadcast* v) override;
-  void visit(const IfThenElse* v) override;
-  void visit(const Allocate* v) override;
-  void visit(const Free* v) override;
-  void visit(const Cond* v) override;
-
-  std::ostream& os() {
-    return printer_os_;
-  }
-
-  class PrinterStream : public std::ostream {
-   public:
-    PrinterStream(IRPrinter* printer, std::ostream& os)
-        : std::ostream(os.rdbuf()), printer_(printer) {}
-
-    IRPrinter* printer() {
-      return printer_;
-    }
-
-   private:
-    IRPrinter* printer_ = nullptr;
-  };
-
- protected:
-  UniqueNameManager* name_manager() {
-    return &name_manager_;
-  }
 
  private:
-  template <typename Op>
-  void visitBinaryOp(const BinaryOpNode<Op>* v, const std::string& op_str);
-
-  std::ostream& raw_os() {
-    return printer_os_;
-  }
-
-  PrinterStream printer_os_;
-  UniqueNameManager name_manager_;
+  std::ostream& os;
 };
 
-TORCH_API std::ostream& operator<<(std::ostream& stream, const Expr&);
-TORCH_API std::ostream& operator<<(std::ostream& stream, const Stmt&);
+std::ostream& operator<<(std::ostream& stream, const Expr&);
+std::ostream& operator<<(std::ostream& stream, const Stmt&);
 
-} // namespace tensorexpr
+} // namespace compiler
 } // namespace jit
 } // namespace torch
-
-namespace std {
-
-using torch::jit::tensorexpr::Expr;
-using torch::jit::tensorexpr::Stmt;
-
-inline std::string to_string(const Expr& expr) {
-  std::ostringstream oss;
-  oss << expr;
-  return oss.str();
-}
-
-inline std::string to_string(const Stmt& stmt) {
-  std::ostringstream oss;
-  oss << stmt;
-  return oss.str();
-}
-
-}; // namespace std

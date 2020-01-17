@@ -2,9 +2,9 @@
 
 #include <vector>
 
-#include "torch/csrc/jit/compiler/include/expr.h"
-#include "torch/csrc/jit/compiler/include/function.h"
-#include "torch/csrc/jit/compiler/include/refcount.h"
+#include "torch/csrc/jit/tensorexpr/expr.h"
+#include "torch/csrc/jit/tensorexpr/function.h"
+#include "torch/csrc/jit/tensorexpr/refcount.h"
 
 namespace torch {
 namespace jit {

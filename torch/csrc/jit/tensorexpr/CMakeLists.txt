@@ -36,22 +36,22 @@ include("${ASMJIT_DIR}/CMakeLists.txt")
 include_directories("${ASMJIT_DIR}/src")
 
 add_library(nnc
-  src/expr.cc
-  src/function.cc
-  src/ir.cc
-  src/ir_visitor.cc
-  src/asmjit_codegen.cc
-  src/llvm_codegen.cc
-  src/llvm_jit.cc
-  src/types.cc
-  src/ir_printer.cc
-  src/ir_mutator.cc
-  src/schedule.cc
-  src/tensor.cc
+  expr.cpp
+  function.cpp
+  ir.cpp
+  ir_visitor.cpp
+  asmjit_codegen.cpp
+  llvm_codegen.cpp
+  llvm_jit.cpp
+  types.cpp
+  ir_printer.cpp
+  ir_mutator.cpp
+  schedule.cpp
+  tensor.cpp
   ${ASMJIT_SRC}
   )
 
-set_source_files_properties(src/llvm_jit.cc PROPERTIES COMPILE_FLAGS -fno-rtti)
+set_source_files_properties(llvm_jit.cpp PROPERTIES COMPILE_FLAGS -fno-rtti)
 
 target_include_directories(nnc PUBLIC "../../../../")
 
@@ -65,23 +65,23 @@ add_custom_target(cpptest)
 add_subdirectory(../../../../third_party/googletest/ googletest EXCLUDE_FROM_ALL)
 
 set(TEST_SRCS
-  tests/asmjit_test.cc
-  tests/expr_test.cc
-  tests/llvm_test.cc
-  tests/type_test.cc
-  tests/ir_printer_test.cc
-  tests/schedule_test.cc
+  tests/asmjit_test.cpp
+  tests/expr_test.cpp
+  tests/llvm_test.cpp
+  tests/type_test.cpp
+  tests/ir_printer_test.cpp
+  tests/schedule_test.cpp
   )
 
 add_library(test_lib
-  tests/padded_buffer.cc
+  tests/padded_buffer.cpp
   )
 target_include_directories(test_lib PUBLIC "../../../../")
 target_include_directories(test_lib PUBLIC "../../../../third_party/googletest/googletest/include")
 
 foreach(test_path ${TEST_SRCS})
   get_filename_component(filename ${test_path} NAME)
-  string(REPLACE ".cc" "" test_exec ${filename})
+  string(REPLACE ".cpp" "" test_exec ${filename})
   add_executable(${test_exec} ${test_path})
   add_dependencies(cpptest ${test_exec})
   target_link_libraries(${test_exec} test_lib nnc gtest_main gtest ${ASMJIT_DEPS})

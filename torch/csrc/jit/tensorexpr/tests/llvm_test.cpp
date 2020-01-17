@@ -1,9 +1,9 @@
-#include "torch/csrc/jit/compiler/include/ir.h"
-#include "torch/csrc/jit/compiler/include/ir_printer.h"
-#include "torch/csrc/jit/compiler/include/llvm_codegen.h"
-#include "torch/csrc/jit/compiler/include/schedule.h"
-#include "torch/csrc/jit/compiler/include/tensor.h"
-#include "torch/csrc/jit/compiler/tests/test_utils.h"
+#include "torch/csrc/jit/tensorexpr/ir.h"
+#include "torch/csrc/jit/tensorexpr/ir_printer.h"
+#include "torch/csrc/jit/tensorexpr/llvm_codegen.h"
+#include "torch/csrc/jit/tensorexpr/schedule.h"
+#include "torch/csrc/jit/tensorexpr/tensor.h"
+#include "torch/csrc/jit/tensorexpr/tests/test_utils.h"
 
 #include <gtest/gtest.h>
 

@@ -3,8 +3,8 @@
 
 #include <gtest/gtest.h>
 
-#include "torch/csrc/jit/compiler/include/ir_printer.h"
-#include "torch/csrc/jit/compiler/tests/test_utils.h"
+#include "torch/csrc/jit/tensorexpr/ir_printer.h"
+#include "torch/csrc/jit/tensorexpr/tests/test_utils.h"
 
 using namespace torch::jit::compiler;
 

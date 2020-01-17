@@ -1,9 +1,9 @@
 #pragma once
 
 #include "llvm/ExecutionEngine/Orc/ThreadSafeModule.h"
-#include "torch/csrc/jit/compiler/include/ir.h"
-#include "torch/csrc/jit/compiler/include/ir_visitor.h"
-#include "torch/csrc/jit/compiler/include/llvm_jit.h"
+#include "torch/csrc/jit/tensorexpr/ir.h"
+#include "torch/csrc/jit/tensorexpr/ir_visitor.h"
+#include "torch/csrc/jit/tensorexpr/llvm_jit.h"
 
 #include <llvm/IR/IRBuilder.h>
 #include <llvm/IR/LegacyPassManager.h>

@@ -3,22 +3,18 @@
 #include <cstdint>
 #include <iostream>
 
-#include <c10/util/Logging.h>
-#include <torch/csrc/WindowsTorchApiMacro.h>
+#include "torch/csrc/jit/tensorexpr/logging.h"
 
 namespace torch {
 namespace jit {
-namespace tensorexpr {
+namespace compiler {
 
 using int32 = std::int32_t;
-
-class Dtype;
-TORCH_API std::ostream& operator<<(std::ostream& stream, const Dtype& dtype);
 
 // Switch to PT/Aten dtypes
 
 // Data types for scalar and vector elements.
-class TORCH_API Dtype {
+class Dtype {
  public:
   explicit Dtype(int type) : scalar_type_(type), lanes_(1) {}
   Dtype(int scalar_type, int lanes)
@@ -37,8 +33,6 @@ class TORCH_API Dtype {
   bool operator!=(const Dtype& other) const {
     return !(*this == other);
   }
-  int byte_size() const;
-  std::string ToCppString() const;
 
  private:
   friend std::ostream& operator<<(std::ostream& stream, const Dtype& dtype);
@@ -46,10 +40,10 @@ class TORCH_API Dtype {
   int lanes_; // the width of the element for a vector time
 };
 
-extern TORCH_API Dtype kUninitialized;
-extern TORCH_API Dtype kInt32;
-extern TORCH_API Dtype kFloat32;
-extern TORCH_API Dtype kHandle;
+extern Dtype kUninitialized;
+extern Dtype kInt32;
+extern Dtype kFloat32;
+extern Dtype kHandle;
 
 template <typename T>
 Dtype ToDtype();
@@ -64,31 +58,10 @@ inline Dtype ToDtype<float>() {
   return kFloat32;
 }
 
-// Optional return type in case
-// the binary Op is a CompareSelect Op
-enum ReturnType {
-  knone,
-  kint32,
-  kfloat32,
-};
-
-inline Dtype BinaryOpDtype(
-    Dtype op1_dtype,
-    Dtype op2_dtype,
-    ReturnType ret_type = ReturnType::knone) {
+inline Dtype BinaryOpDtype(Dtype op1_dtype, Dtype op2_dtype) {
   if (op1_dtype == op2_dtype) {
-    switch (ret_type) {
-      case ReturnType::knone:
-        return op1_dtype;
-      case ReturnType::kint32:
-        return ToDtype<int>();
-      case ReturnType::kfloat32:
-        return ToDtype<float>();
-      default:
-        throw std::runtime_error("invalid operator return type");
-    }
+    return op1_dtype;
   }
-
   CHECK_EQ(op1_dtype.lanes(), op2_dtype.lanes()) << "vector lengths must match";
   Dtype op1_scalar = op1_dtype.scalar_type();
   Dtype op2_scalar = op2_dtype.scalar_type();
@@ -100,16 +73,9 @@ inline Dtype BinaryOpDtype(
     return op1_dtype;
   }
   LOG(FATAL) << "Invalid dtypes: " << op1_dtype << ", " << op2_dtype;
-  return op1_dtype;
+  assert_unreachable("Invalid dtypes");
 }
 
-} // namespace tensorexpr
+} // namespace compiler
 } // namespace jit
 } // namespace torch
-
-namespace std {
-
-using torch::jit::tensorexpr::Dtype;
-std::string to_string(const Dtype& dtype);
-
-} // namespace std

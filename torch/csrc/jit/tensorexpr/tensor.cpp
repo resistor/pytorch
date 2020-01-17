@@ -1,5 +1,5 @@
-#include "torch/csrc/jit/compiler/include/tensor.h"
-#include "torch/csrc/jit/compiler/include/schedule.h"
+#include "torch/csrc/jit/tensorexpr/tensor.h"
+#include "torch/csrc/jit/tensorexpr/schedule.h"
 
 namespace torch {
 namespace jit {

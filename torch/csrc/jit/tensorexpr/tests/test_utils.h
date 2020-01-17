@@ -5,12 +5,12 @@
 #include <unordered_map>
 #include <vector>
 
-#include "torch/csrc/jit/compiler/include/buffer.h"
-#include "torch/csrc/jit/compiler/include/eval.h"
-#include "torch/csrc/jit/compiler/include/function.h"
-#include "torch/csrc/jit/compiler/include/ir.h"
-#include "torch/csrc/jit/compiler/include/tensor.h"
-#include "torch/csrc/jit/compiler/tests/padded_buffer.h"
+#include "torch/csrc/jit/tensorexpr/buffer.h"
+#include "torch/csrc/jit/tensorexpr/eval.h"
+#include "torch/csrc/jit/tensorexpr/function.h"
+#include "torch/csrc/jit/tensorexpr/ir.h"
+#include "torch/csrc/jit/tensorexpr/tensor.h"
+#include "torch/csrc/jit/tensorexpr/tests/padded_buffer.h"
 
 namespace torch {
 namespace jit {

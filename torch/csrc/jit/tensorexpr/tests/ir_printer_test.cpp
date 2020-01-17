@@ -1,11 +1,11 @@
 #include <stdexcept>
 
-#include "torch/csrc/jit/compiler/include/expr.h"
-#include "torch/csrc/jit/compiler/include/ir.h"
-#include "torch/csrc/jit/compiler/include/ir_printer.h"
+#include "torch/csrc/jit/tensorexpr/expr.h"
+#include "torch/csrc/jit/tensorexpr/ir.h"
+#include "torch/csrc/jit/tensorexpr/ir_printer.h"
 
 #include <gtest/gtest.h>
-#include "torch/csrc/jit/compiler/tests/test_utils.h"
+#include "torch/csrc/jit/tensorexpr/tests/test_utils.h"
 
 #include <sstream>
 

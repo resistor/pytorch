@@ -3,11 +3,11 @@
 #include <memory>
 #include <unordered_map>
 
-#include "torch/csrc/jit/compiler/include/expr.h"
-#include "torch/csrc/jit/compiler/include/ir.h"
-#include "torch/csrc/jit/compiler/include/logging.h"
-#include "torch/csrc/jit/compiler/include/refcount.h"
-#include "torch/csrc/jit/compiler/include/tensor.h"
+#include "torch/csrc/jit/tensorexpr/expr.h"
+#include "torch/csrc/jit/tensorexpr/ir.h"
+#include "torch/csrc/jit/tensorexpr/logging.h"
+#include "torch/csrc/jit/tensorexpr/refcount.h"
+#include "torch/csrc/jit/tensorexpr/tensor.h"
 
 namespace torch {
 namespace jit {

@@ -4,7 +4,7 @@
 
 namespace torch {
 namespace jit {
-namespace tensorexpr {
+namespace compiler {
 
 class Buffer {
  public:
@@ -45,13 +45,6 @@ class Buffer {
     return LoadValue(index);
   }
 
-  template <typename T>
-  Expr call(const std::vector<T>& args) const {
-    std::vector<Expr> params(args.begin(), args.end());
-    Expr index = Index(params);
-    return LoadValue(index);
-  }
-
  private:
   Expr Index(const Expr& x) const {
     CHECK(ndim() == 1);
@@ -61,18 +54,18 @@ class Buffer {
     CHECK(ndim() == 2);
     return x * strides_[0] + y;
   }
-  Expr Index(const Expr& x, const Expr& y, const Expr& z) const {
+  Expr Index(const Expr& x, const Expr& y, const Expr& z) {
     CHECK(ndim() == 3);
     return x * strides_[0] + y * strides_[1] + z;
   }
-  Expr Index(const Expr& x, const Expr& y, const Expr& z, const Expr& w) const {
+  Expr Index(const Expr& x, const Expr& y, const Expr& z, const Expr& w) {
     CHECK(ndim() == 4);
     return x * strides_[0] + y * strides_[1] + z * strides_[2] + w;
   }
-  Expr Index(const std::vector<Expr>& indices) const {
-    CHECK(ndim() == (int)indices.size());
+  Expr Index(const std::vector<Expr>& indices) {
+    CHECK(ndim() == indices.size());
     Expr total_index;
-    for (size_t i = 0; i < indices.size(); i++) {
+    for (int i = 0; i < indices.size(); i++) {
       Expr index;
       if (i == indices.size() - 1) {
         index = indices[i];
@@ -101,6 +94,6 @@ inline Expr Buffer::LoadValue(const Expr& index) const {
   return Load::make(*this, index, Expr(1));
 }
 
-} // namespace tensorexpr
+} // namespace compiler
 } // namespace jit
 } // namespace torch

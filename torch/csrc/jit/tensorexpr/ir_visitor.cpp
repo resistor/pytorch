@@ -1,10 +1,8 @@
-#include "torch/csrc/jit/tensorexpr/ir_visitor.h"
-
 #include "torch/csrc/jit/tensorexpr/ir.h"
 
 namespace torch {
 namespace jit {
-namespace tensorexpr {
+namespace compiler {
 
 template <typename Op>
 static void visit_binary_op(const BinaryOpNode<Op>* v, IRVisitor* visitor) {
@@ -28,21 +26,12 @@ void IRVisitor::visit(const Div* v) {
   visit_binary_op(v, this);
 }
 
-void IRVisitor::visit(const Mod* v) {
-  visit_binary_op(v, this);
-}
-
 void IRVisitor::visit(const Max* v) {
   visit_binary_op(v, this);
 }
 
 void IRVisitor::visit(const Min* v) {
   visit_binary_op(v, this);
-}
-
-void IRVisitor::visit(const CompareSelect* v) {
-  v->lhs().accept(this);
-  v->rhs().accept(this);
 }
 
 void IRVisitor::visit(const IntImm* v) {}
@@ -92,35 +81,6 @@ void IRVisitor::visit(const Broadcast* v) {
   v->value().accept(this);
 }
 
-void IRVisitor::visit(const IfThenElse* v) {
-  v->condition().accept(this);
-  v->true_value().accept(this);
-  v->false_value().accept(this);
-}
-
-void IRVisitor::visit(const Allocate* v) {
-  Var buffer_var = v->buffer_var();
-  buffer_var.accept(this);
-  std::vector<Expr> dims = v->dims();
-  for (Expr& dim : dims) {
-    dim.accept(this);
-  }
-}
-
-void IRVisitor::visit(const Free* v) {
-  Var buffer_var = v->buffer_var();
-  buffer_var.accept(this);
-}
-
-void IRVisitor::visit(const Cond* v) {
-  Expr condition = v->condition();
-  Stmt true_stmt = v->true_stmt();
-  Stmt false_stmt = v->false_stmt();
-  condition.accept(this);
-  true_stmt.accept(this);
-  false_stmt.accept(this);
-}
-
-} // namespace tensorexpr
+} // namespace compiler
 } // namespace jit
 } // namespace torch

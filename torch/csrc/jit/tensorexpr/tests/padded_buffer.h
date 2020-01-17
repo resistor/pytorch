@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 
-#include "torch/csrc/jit/compiler/include/eval.h"
+#include "torch/csrc/jit/tensorexpr/eval.h"
 
 namespace torch {
 namespace jit {

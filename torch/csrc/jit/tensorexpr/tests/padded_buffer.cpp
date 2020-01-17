@@ -1,10 +1,10 @@
-#include "torch/csrc/jit/compiler/tests/padded_buffer.h"
+#include "torch/csrc/jit/tensorexpr/tests/padded_buffer.h"
 
 #include <sstream>
 
 #include <gtest/gtest.h>
 
-#include "torch/csrc/jit/compiler/include/logging.h"
+#include "torch/csrc/jit/tensorexpr/logging.h"
 
 namespace torch {
 namespace jit {

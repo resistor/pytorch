@@ -1,7 +1,7 @@
-#include "torch/csrc/jit/compiler/include/function.h"
+#include "torch/csrc/jit/tensorexpr/function.h"
 
-#include "torch/csrc/jit/compiler/include/logging.h"
-#include "torch/csrc/jit/compiler/include/tensor.h"
+#include "torch/csrc/jit/tensorexpr/logging.h"
+#include "torch/csrc/jit/tensorexpr/tensor.h"
 
 namespace torch {
 namespace jit {

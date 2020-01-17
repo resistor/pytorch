@@ -1,6 +1,6 @@
 #pragma once
 
-#include "torch/csrc/jit/compiler/include/ir_visitor.h"
+#include "torch/csrc/jit/tensorexpr/ir_visitor.h"
 
 #include <asmjit/asmjit.h>
 #include <memory>

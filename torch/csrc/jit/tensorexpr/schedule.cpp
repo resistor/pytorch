@@ -1,9 +1,9 @@
-#include "torch/csrc/jit/compiler/include/schedule.h"
+#include "torch/csrc/jit/tensorexpr/schedule.h"
 
 #include <stdexcept>
 
-#include "torch/csrc/jit/compiler/include/eval.h"
-#include "torch/csrc/jit/compiler/include/ir_printer.h"
+#include "torch/csrc/jit/tensorexpr/eval.h"
+#include "torch/csrc/jit/tensorexpr/ir_printer.h"
 
 namespace torch {
 namespace jit {

@@ -5,10 +5,10 @@
 
 #include <gtest/gtest.h>
 
-#include "torch/csrc/jit/compiler/include/ir_printer.h"
-#include "torch/csrc/jit/compiler/include/schedule.h"
-#include "torch/csrc/jit/compiler/include/tensor.h"
-#include "torch/csrc/jit/compiler/tests/test_utils.h"
+#include "torch/csrc/jit/tensorexpr/ir_printer.h"
+#include "torch/csrc/jit/tensorexpr/schedule.h"
+#include "torch/csrc/jit/tensorexpr/tensor.h"
+#include "torch/csrc/jit/tensorexpr/tests/test_utils.h"
 
 using namespace torch::jit::compiler;
 using namespace torch::jit::compiler::schedule;

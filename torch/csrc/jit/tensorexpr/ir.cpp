@@ -4,7 +4,7 @@
 
 namespace torch {
 namespace jit {
-namespace tensorexpr {
+namespace compiler {
 
 static Dtype ChooseDtype(const Dtype& buffer_dtype, const Dtype& index_dtype) {
   return Dtype(buffer_dtype, index_dtype.lanes());
@@ -41,6 +41,6 @@ Store::Store(
   CHECK_EQ(buffer.dtype().scalar_type(), value.dtype().scalar_type());
 }
 
-} // namespace tensorexpr
+} // namespace compiler
 } // namespace jit
 } // namespace torch

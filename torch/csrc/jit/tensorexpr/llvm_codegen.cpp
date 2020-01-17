@@ -1,4 +1,4 @@
-#include "torch/csrc/jit/compiler/include/llvm_codegen.h"
+#include "torch/csrc/jit/tensorexpr/llvm_codegen.h"
 
 #include <memory>
 
@@ -10,9 +10,9 @@
 #include <llvm/Target/TargetMachine.h>
 #include <llvm/Transforms/IPO/PassManagerBuilder.h>
 
-#include "torch/csrc/jit/compiler/include/buffer.h"
-#include "torch/csrc/jit/compiler/include/ir.h"
-#include "torch/csrc/jit/compiler/include/types.h"
+#include "torch/csrc/jit/tensorexpr/buffer.h"
+#include "torch/csrc/jit/tensorexpr/ir.h"
+#include "torch/csrc/jit/tensorexpr/types.h"
 
 using namespace torch::jit::compiler;
 

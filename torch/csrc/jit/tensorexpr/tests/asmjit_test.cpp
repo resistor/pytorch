@@ -1,5 +1,5 @@
-#include "torch/csrc/jit/compiler/include/asmjit_codegen.h"
-#include "torch/csrc/jit/compiler/include/ir.h"
+#include "torch/csrc/jit/tensorexpr/asmjit_codegen.h"
+#include "torch/csrc/jit/tensorexpr/ir.h"
 
 #include <gtest/gtest.h>
 

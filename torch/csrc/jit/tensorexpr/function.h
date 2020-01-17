@@ -3,9 +3,9 @@
 #include <functional>
 #include <vector>
 
-#include "torch/csrc/jit/compiler/include/expr.h"
-#include "torch/csrc/jit/compiler/include/ir.h"
-#include "torch/csrc/jit/compiler/include/refcount.h"
+#include "torch/csrc/jit/tensorexpr/expr.h"
+#include "torch/csrc/jit/tensorexpr/ir.h"
+#include "torch/csrc/jit/tensorexpr/refcount.h"
 
 namespace torch {
 namespace jit {

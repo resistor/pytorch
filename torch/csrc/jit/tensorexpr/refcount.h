@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <atomic>
 
-#include "torch/csrc/jit/compiler/include/logging.h"
+#include "torch/csrc/jit/tensorexpr/logging.h"
 
 namespace torch {
 namespace jit {
