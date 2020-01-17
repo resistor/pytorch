@@ -1,25 +1,23 @@
-#include <torch/csrc/jit/passes/tensorexpr_fuser.h>
 #include <torch/csrc/autograd/record_function.h>
-#include <torch/csrc/jit/runtime/custom_operator.h>
+#include <torch/csrc/jit/custom_operator.h>
+#include <torch/csrc/jit/operator_options.h>
 #include <torch/csrc/jit/jit_log.h>
-#include <torch/csrc/jit/runtime/operator_options.h>
-#include <torch/csrc/jit/passes/pass_manager.h>
-#include <torch/csrc/jit/ir/alias_analysis.h>
+#include <torch/csrc/jit/pass_manager.h>
+#include <torch/csrc/jit/passes/alias_analysis.h>
 #include <torch/csrc/jit/passes/common_subexpression_elimination.h>
 #include <torch/csrc/jit/passes/dead_code_elimination.h>
 #include <torch/csrc/jit/passes/utils/subgraph_utils.h>
 
-namespace torch {
-namespace jit {
+using namespace torch::jit;
+
+namespace {
 
 const Symbol& getTensorExprSymbol() {
   static Symbol s = Symbol::fromQualString("tensorexpr::Group");
   return s;
 }
 
-value_list sortReverseTopological(
-    ArrayRef<torch::jit::Value*> inputs,
-    torch::jit::Block* block) {
+value_list sortReverseTopological(ArrayRef<Value*> inputs, Block* block) {
   value_list result;
   for (auto i : inputs) {
     if (i->node()->owningBlock() == block) {
@@ -27,54 +25,32 @@ value_list sortReverseTopological(
     }
   }
   // Sort in reverse topological order
-  std::sort(
-      result.begin(),
-      result.end(),
-      [&](torch::jit::Value* a, torch::jit::Value* b) {
-        return a->node()->isAfter(b->node());
-      });
+  std::sort(result.begin(), result.end(), [&](Value* a, Value* b) {
+    return a->node()->isAfter(b->node());
+  });
   return result;
 }
 
+bool isSupported(Node* node) {
+  // TODO:
+  return node->kind() == Symbol::fromQualString("aten::add");
+}
+
 bool canHandle(Node* node, AliasDb& aliasDb) {
-  // TODO: actually support some ops
-  return false;
+  if (node->kind() == prim::Constant) {
+    return true;
+  }
+  if (node->kind() == prim::Loop) {
+    return false; // TODO
+  }
+  return isSupported(node);
 }
 
 #define REQ(cond)                           \
   if (!(cond)) {                            \
     GRAPH_DEBUG("Failed cond " #cond "\n"); \
-    return false;                           \
+    return c10::nullopt;                    \
   }
-
-bool canMerge(Node* consumer, Node* producer, AliasDb& aliasDb) {
-  // Only handle complete tensor types
-  for (torch::jit::Value* output : consumer->outputs()) {
-    REQ(output->isCompleteTensor());
-  }
-
-  // Only fuse within a block
-  REQ(consumer->owningBlock() == producer->owningBlock());
-
-  // Symbolic checks
-  REQ(canHandle(producer, aliasDb));
-  REQ(
-      (canHandle(consumer, aliasDb) ||
-       consumer->kind() == getTensorExprSymbol()));
-
-  // Alias checks
-  REQ(aliasDb.couldMoveAfterTopologically(consumer, producer));
-
-  return true;
-}
-#undef REQ
-
-Node* getOrCreateTensorExprSubgraph(Node* n) {
-  if (n->hasAttribute(attr::Subgraph) && n->kind() == getTensorExprSymbol()) {
-    return n;
-  }
-  return SubgraphUtils::createSingletonSubgraph(n, getTensorExprSymbol());
-}
 
 c10::optional<Node*> tryMerge(
     Node* consumer,
@@ -87,45 +63,92 @@ c10::optional<Node*> tryMerge(
       consumer->kind().toQualString(),
       ":\n");
 
-  if (!canMerge(consumer, producer, aliasDb)) {
-    return c10::nullopt;
-  }
+  // Symbolic checks
+  REQ(canHandle(producer, aliasDb));
+  REQ((canHandle(consumer, aliasDb) || consumer->kind() == getTensorExprSymbol()));
 
-  consumer = getOrCreateTensorExprSubgraph(consumer);
+  // Alias checks
+  // Requirement:
+  // - moveAfterTopologicallyValid(consumer, producer)
+  // - One of:
+  //   1) Both are in-place ops
+  //   2) Consumer is in-place, producer !hasInputWriters
+  //   3) Producer is in-place, consumer !hasOutputWriters
+  REQ(aliasDb.moveAfterTopologicallyValid(consumer, producer));
 
-  aliasDb.moveAfterTopologicallyValid(consumer, producer);
-  SubgraphUtils::mergeNodeIntoSubgraph(producer, consumer);
-
-  return consumer;
-}
-
-std::pair<graph_node_list::iterator, bool> scanNode(
-    Node* consumer,
-    AliasDb& aliasDb) {
-  auto inputs =
-      sortReverseTopological(consumer->inputs(), consumer->owningBlock());
-
-  // Grab the iterator below consumer.  We'll use that to determine
-  // where to resume iteration, even if consumer gets relocated within
-  // the block.
-  auto iter = --consumer->reverseIterator();
-  for (auto input : inputs) {
-    if (auto group = tryMerge(consumer, input->node(), aliasDb)) {
-      // Resume iteration from where consumer is/used to be.
-      return {++iter, true};
+  // 1)
+  if (!(aliasDb.isMutable(consumer) && aliasDb.isMutable(producer))) {
+    // 2)
+    if (aliasDb.isMutable(consumer)) {
+      REQ(!aliasDb.hasInputWriters(producer));
+      // 3)
+    } else if (aliasDb.isMutable(producer)) {
+      REQ(!aliasDb.hasOutputWriters(consumer));
     }
   }
 
-  // We know consumer didn't move, so skip over it.
-  return {++(++iter), false};
+  if (!consumer->hasAttribute(attr::Subgraph) &&
+      consumer->kind() != getTensorExprSymbol()) {
+    consumer = SubgraphUtils::createSingletonSubgraph(consumer, getTensorExprSymbol());
+  }
+  if (producer->kind() == prim::Constant) {
+    auto& subgraph = consumer->g(attr::Subgraph);
+    Node* in_const = subgraph->createClone(producer, [](Value*) -> Value* {
+      throw std::runtime_error("unexpected input");
+    });
+    subgraph->insertNode(in_const);
+  } else {
+    SubgraphUtils::mergeNodeIntoSubgraph(producer, consumer);
+  }
+  return consumer;
+}
+#undef REQ
+
+std::pair<graph_node_list::iterator, bool> scanNode(
+    Node* consumer,
+    AliasDb& aliasDb,
+    Block* block) {
+  auto inputs = sortReverseTopological(consumer->inputs(), block);
+  for (auto input : inputs) {
+    if (auto group = tryMerge(consumer, input->node(), aliasDb)) {
+      // we successfully merged, so the new group's `inputs` may have
+      // changed. So rescan the new group for more merging opportunities.
+      return {group.value()->reverseIterator(), true};
+    }
+  }
+  return {++consumer->reverseIterator(), false};
+}
+
+void fuseTensorExprs(std::shared_ptr<Graph>& graph) {
+  std::cout << "Entering TExprFuser\n";
+  std::cout << *graph;
+
+  AliasDb aliasDb(graph);
+  auto block = graph->block();
+
+  bool any_changed = true;
+  while (any_changed) {
+    any_changed = false;
+    for (auto it = block->nodes().rbegin(); it != block->nodes().rend();) {
+      bool changed;
+      std::tie(it, changed) = scanNode(*it, aliasDb, block);
+      any_changed |= changed;
+    }
+  }
+
+  EliminateCommonSubexpression(graph);
+  EliminateDeadCode(graph);
+
+  std::cout << "Finishing TExprFuser\n";
+  std::cout << *graph;
 }
 
 Operation createTensorExprOp(const Node* node) {
-  // TODO: actually compile the fusion group.
   return [](Stack& stack) {
-    RECORD_FUNCTION("TensorExpr", std::vector<c10::IValue>());
-    return 0;
-  };
+           RECORD_FUNCTION("TensorExprGroup", std::vector<c10::IValue>());
+           // Do something?
+           return 0;
+         };
 }
 
 c10::OperatorOptions getAliasAnalysisOption(AliasAnalysisKind k) {
@@ -138,68 +161,10 @@ RegisterOperators TensorExprOps({
     torch::jit::Operator(
         getTensorExprSymbol(),
         createTensorExprOp,
-        getAliasAnalysisOption(AliasAnalysisKind::PURE_FUNCTION)),
-});
+        getAliasAnalysisOption(AliasAnalysisKind::PURE_FUNCTION)
+    ),
+  });
 
-void fuseTensorExprs(std::shared_ptr<Graph>& graph) {
-  GRAPH_DUMP("Before TExprFuser: ", graph);
+RegisterPass pass(fuseTensorExprs);
 
-  // Get rid of dead code so that we don't waste effort fusing it.
-  EliminateDeadCode(graph);
-
-  AliasDb aliasDb(graph);
-  auto block = graph->block();
-
-  std::vector<std::pair<graph_node_list_iterator, graph_node_list_iterator>>
-      worklist;
-  std::unordered_set<torch::jit::Block*> visited_blocks;
-
-  bool any_changed = true;
-  while (any_changed) {
-    any_changed = false;
-    worklist.push_back({block->nodes().rbegin(), block->nodes().rend()});
-
-    while (worklist.size()) {
-      auto& it = worklist.back().first;
-      auto end = worklist.back().second;
-
-      if (it->blocks().size()) {
-        Node* n = *it;
-        ++it;
-
-        if (it == end) {
-          worklist.pop_back();
-        }
-
-        for (auto b : n->blocks()) {
-          if (!visited_blocks.count(b)) {
-            worklist.push_back({b->nodes().rbegin(), b->nodes().rend()});
-            visited_blocks.insert(b);
-          }
-        }
-      } else {
-        bool changed;
-        std::tie(it, changed) = scanNode(*it, aliasDb);
-        any_changed |= changed;
-        if (it == end) {
-          worklist.pop_back();
-        }
-      }
-    }
-  }
-
-  EliminateCommonSubexpression(graph);
-  EliminateDeadCode(graph);
-
-  GRAPH_DUMP("After TExprFuser: ", graph);
-}
-
-void registerTensorExprFuser() {
-  static bool already_registered = false;
-  if (!already_registered) {
-    RegisterPass pass(fuseTensorExprs);
-    already_registered = true;
-  }
-}
-} // namespace jit
-} // namespace torch
+} // namespace
