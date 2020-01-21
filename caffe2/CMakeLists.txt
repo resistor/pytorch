@@ -425,6 +425,7 @@ if (NOT INTERN_BUILD_MOBILE OR NOT BUILD_CAFFE2_MOBILE)
     ${TORCH_SRC_DIR}/csrc/jit/passes/requires_grad_analysis.cpp
     ${TORCH_SRC_DIR}/csrc/jit/passes/specialize_autogradzero.cpp
     ${TORCH_SRC_DIR}/csrc/jit/passes/subgraph_rewrite.cpp
+    ${TORCH_SRC_DIR}/csrc/jit/passes/tensorexpr_fuser.cpp
     ${TORCH_SRC_DIR}/csrc/jit/passes/python_print.cpp
     ${TORCH_SRC_DIR}/csrc/jit/passes/utils/subgraph_utils.cpp
     ${TORCH_SRC_DIR}/csrc/jit/passes/utils/check_alias_annotation.cpp
@@ -462,24 +463,25 @@ if (NOT INTERN_BUILD_MOBILE OR NOT BUILD_CAFFE2_MOBILE)
     ${TORCH_SRC_DIR}/csrc/jit/testing/hooks_for_testing.cpp
     ${TORCH_SRC_DIR}/csrc/utils/tensor_flatten.cpp
     ${TORCH_SRC_DIR}/csrc/utils/variadic.cpp
-    ${TORCH_SRC_DIR}/csrc/jit/codegen/fuser/kernel_cache.cpp
-    ${TORCH_SRC_DIR}/csrc/jit/codegen/fuser/compiler.cpp
-    ${TORCH_SRC_DIR}/csrc/jit/codegen/fuser/executor.cpp
-    ${TORCH_SRC_DIR}/csrc/jit/codegen/fuser/codegen.cpp
-    ${TORCH_SRC_DIR}/csrc/jit/codegen/fuser/fallback.cpp
-    ${TORCH_SRC_DIR}/csrc/jit/api/function.cpp
-    ${TORCH_SRC_DIR}/csrc/jit/runtime/vararg_functions.cpp
-
-    ${TORCH_SRC_DIR}/csrc/jit/tensorexpr/mem_arena.cpp
-    ${TORCH_SRC_DIR}/csrc/jit/tensorexpr/codegen.cpp
+    ${TORCH_SRC_DIR}/csrc/jit/fuser/kernel_cache.cpp
+    ${TORCH_SRC_DIR}/csrc/jit/fuser/compiler.cpp
+    ${TORCH_SRC_DIR}/csrc/jit/fuser/executor.cpp
+    ${TORCH_SRC_DIR}/csrc/jit/fuser/codegen.cpp
+    ${TORCH_SRC_DIR}/csrc/jit/fuser/fallback.cpp
+    ${TORCH_SRC_DIR}/csrc/jit/function.cpp
+    ${TORCH_SRC_DIR}/csrc/jit/vararg_functions.cpp
     ${TORCH_SRC_DIR}/csrc/jit/tensorexpr/expr.cpp
-    ${TORCH_SRC_DIR}/csrc/jit/tensorexpr/eval.cpp
+    ${TORCH_SRC_DIR}/csrc/jit/tensorexpr/function.cpp
     ${TORCH_SRC_DIR}/csrc/jit/tensorexpr/ir.cpp
     ${TORCH_SRC_DIR}/csrc/jit/tensorexpr/ir_visitor.cpp
+    ${TORCH_SRC_DIR}/csrc/jit/tensorexpr/asmjit_codegen.cpp
+    ${TORCH_SRC_DIR}/csrc/jit/tensorexpr/llvm_codegen.cpp
+    ${TORCH_SRC_DIR}/csrc/jit/tensorexpr/llvm_jit.cpp
     ${TORCH_SRC_DIR}/csrc/jit/tensorexpr/types.cpp
     ${TORCH_SRC_DIR}/csrc/jit/tensorexpr/ir_printer.cpp
     ${TORCH_SRC_DIR}/csrc/jit/tensorexpr/ir_mutator.cpp
-    ${TORCH_SRC_DIR}/csrc/jit/tensorexpr/unique_name_manager.cpp
+    ${TORCH_SRC_DIR}/csrc/jit/tensorexpr/schedule.cpp
+    ${TORCH_SRC_DIR}/csrc/jit/tensorexpr/tensor.cpp
     )
 
   if (NOT INTERN_DISABLE_MOBILE_INTERP)
