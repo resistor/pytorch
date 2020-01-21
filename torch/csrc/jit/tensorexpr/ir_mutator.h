@@ -10,6 +10,7 @@ class Mul;
 class Div;
 class Max;
 class Min;
+class CompareSelect;
 class IntImm;
 class FloatImm;
 class Cast;
@@ -35,6 +36,7 @@ class IRMutator {
   virtual Expr mutate(const Div* v);
   virtual Expr mutate(const Max* v);
   virtual Expr mutate(const Min* v);
+  virtual Expr mutate(const CompareSelect* v);
   virtual Expr mutate(const IntImm* v);
   virtual Expr mutate(const FloatImm* v);
   virtual Expr mutate(const Cast* v);

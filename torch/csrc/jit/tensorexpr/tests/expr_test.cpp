@@ -119,6 +119,43 @@ TEST(ExprTest, VectorAdd01) {
   ExpectAllNear(c_v, c_ref, 1e-5);
 }
 
+TEST(ExprTest, CompareSelectEQ) {
+  constexpr int N = 1024;
+  Buffer a(Var("A", kHandle), kInt32, {N});
+  Buffer b(Var("B", kHandle), kInt32, {N});
+  Buffer c(Var("C", kHandle), kInt32, {N});
+  std::vector<int> a_buffer(N, 1);
+  std::vector<int> b_buffer(N, 1);
+  std::vector<int> c_buffer(N, 0);
+  std::vector<int> c_ref(N, 0);
+
+  auto mask = IntImm::make(1);
+  Var i("i", kInt32);
+  auto memcpy_expr = For::make(
+      i,
+      0,
+      N,
+      Store::make(
+          c,
+          i,
+          CompareSelect::make(
+              Load::make(a, i, mask),
+              Load::make(b, i, mask),
+              CompareSelectOperation::kEQ),
+          mask));
+
+  SimpleIREvaluator ir_eval(memcpy_expr, a, b, c);
+  ir_eval(a_buffer, b_buffer, c_buffer);
+
+  ASSERT_EQ(a_buffer.size(), N);
+  ASSERT_EQ(b_buffer.size(), N);
+  ASSERT_EQ(c_buffer.size(), N);
+
+  assertAllEqual(a_buffer, 1);
+  assertAllEqual(b_buffer, 1);
+  assertAllEqual(c_buffer, 1);
+}
+
 TEST(ExprTest, Substitute01) {
   {
     Expr x = Variable::make("x", kFloat32);

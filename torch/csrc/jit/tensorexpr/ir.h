@@ -16,6 +16,16 @@ enum IRNodeType {
   kDiv,
   kMax,
   kMin,
+  kCompareSelect,
+};
+
+enum CompareSelectOperation {
+  kEQ,
+  kGT,
+  kGE,
+  kLT,
+  kLE,
+  kNE,
 };
 
 class Buffer;
@@ -60,8 +70,12 @@ class BinaryOpNode : public ExprNode<Op> {
   }
 
  protected:
-  BinaryOpNode(const Expr& lhs_v, const Expr& rhs_v, IRNodeType expr_type)
-      : ExprNode<Op>(BinaryOpDtype(lhs_v.dtype(), rhs_v.dtype())),
+  BinaryOpNode(
+      const Expr& lhs_v,
+      const Expr& rhs_v,
+      IRNodeType expr_type,
+      ReturnType ret_type = ReturnType::knone)
+      : ExprNode<Op>(BinaryOpDtype(lhs_v.dtype(), rhs_v.dtype(), ret_type)),
         lhs_(CastIfNeeded(lhs_v, ExprNode<Op>::dtype())),
         rhs_(CastIfNeeded(rhs_v, ExprNode<Op>::dtype())),
         expr_type_(expr_type) {}
@@ -142,6 +156,28 @@ class Min : public BinaryOpNode<Min> {
   static Expr make(const Expr& lhs, const Expr& rhs) = delete;
   static Expr make(const Expr& lhs, const Expr& rhs, bool propagate_nans) {
     return Expr(new Min(lhs, rhs, propagate_nans));
+  }
+};
+
+class CompareSelect : public BinaryOpNode<CompareSelect> {
+ private:
+  CompareSelectOperation compare_op_;
+  CompareSelect(const Expr& lhs, const Expr& rhs, CompareSelectOperation cmp_op)
+      : BinaryOpNode(lhs, rhs, IRNodeType::kCompareSelect, ReturnType::kint32),
+        compare_op_(cmp_op) {}
+  friend class BinaryOpNode<CompareSelect>;
+
+ public:
+  CompareSelectOperation compare_select_op() const {
+    return compare_op_;
+  }
+
+  static Expr make(const Expr& lhs, const Expr& rhs) = delete;
+  static Expr make(
+      const Expr& lhs,
+      const Expr& rhs,
+      CompareSelectOperation cmp_op) {
+    return Expr(new CompareSelect(lhs, rhs, cmp_op));
   }
 };
 

@@ -55,6 +55,35 @@ void IRPrinter::visit(const Min* v) {
   os << ", " << (unsigned int)v->propagate_nans() << ")";
 }
 
+void IRPrinter::visit(const CompareSelect* v) {
+  CompareSelectOperation cmp_op = v->compare_select_op();
+  os << "CompareSelect(";
+  v->lhs().accept(this);
+  os << ", ";
+  v->rhs().accept(this);
+  os << ", ";
+  switch (cmp_op) {
+    case CompareSelectOperation::kEQ:
+      os << "EQ";
+      break;
+    case CompareSelectOperation::kGT:
+      os << "GT";
+      break;
+    case CompareSelectOperation::kGE:
+      os << "GE";
+      break;
+    case CompareSelectOperation::kLT:
+      os << "LT";
+      break;
+    case CompareSelectOperation::kLE:
+      os << "LE";
+      break;
+    default:
+      throw std::runtime_error("invalid compare select operator");
+  }
+  os << ")";
+}
+
 void IRPrinter::visit(const IntImm* v) {
   os << v->value();
 }
