@@ -234,6 +234,65 @@ void LLVMCodeGen::visit(const Min* v) {
   value_ = irb_.CreateSelect(fcmp2, rhs, value_);
 }
 
+void LLVMCodeGen::visit(const CompareSelect* v) {
+  v->lhs().accept(this);
+  auto lhs = this->value_;
+  v->rhs().accept(this);
+  auto rhs = this->value_;
+
+  llvm::Value* cmp_;
+  llvm::Value* false_int_ = llvm::ConstantInt::getSigned(int32Ty_, 0);
+  llvm::Value* true_int_ = llvm::ConstantInt::getSigned(int32Ty_, 1);
+  CompareSelectOperation cmp_op_ = v->compare_select_op();
+
+  if (v->dtype() == kInt32) {
+    switch (cmp_op_) {
+      case CompareSelectOperation::kEQ:
+        cmp_ = irb_.CreateICmpEQ(lhs, rhs);
+        break;
+      case CompareSelectOperation::kGT:
+        cmp_ = irb_.CreateICmpSGT(lhs, rhs);
+        break;
+      case CompareSelectOperation::kGE:
+        cmp_ = irb_.CreateICmpSGE(lhs, rhs);
+        break;
+      case CompareSelectOperation::kLT:
+        cmp_ = irb_.CreateICmpSLT(lhs, rhs);
+        break;
+      case CompareSelectOperation::kLE:
+        cmp_ = irb_.CreateICmpSLE(lhs, rhs);
+        break;
+      default:
+        // TODO: change to a proper error report
+        throw std::runtime_error("invalid operator type");
+    }
+  } else { // FP32
+    switch (cmp_op_) {
+      case CompareSelectOperation::kEQ:
+        cmp_ = irb_.CreateFCmpUEQ(lhs, rhs);
+        break;
+      case CompareSelectOperation::kGT:
+        cmp_ = irb_.CreateFCmpUGT(lhs, rhs);
+        break;
+      case CompareSelectOperation::kGE:
+        cmp_ = irb_.CreateFCmpUGE(lhs, rhs);
+        break;
+      case CompareSelectOperation::kLT:
+        cmp_ = irb_.CreateFCmpULT(lhs, rhs);
+        break;
+      case CompareSelectOperation::kLE:
+        cmp_ = irb_.CreateFCmpULE(lhs, rhs);
+        break;
+      default:
+        // TODO: change to a proper error report
+        throw std::runtime_error("invalid operator type");
+    }
+  }
+
+  value_ = irb_.CreateSelect(cmp_, true_int_, false_int_);
+  return;
+}
+
 void LLVMCodeGen::visit(const IntImm* v) {
   value_ = llvm::ConstantInt::getSigned(int32Ty_, v->value());
 }

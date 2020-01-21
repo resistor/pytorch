@@ -68,6 +68,12 @@ void ExpectAllNear(
   }
 }
 
+template <typename T>
+static void assertAllEqual(const std::vector<T>& vec, const T& val) {
+  for (auto const& elt : vec) {
+    ASSERT_EQ(elt, val);
+  }
+}
 } // namespace compiler
 } // namespace jit
 } // namespace torch
