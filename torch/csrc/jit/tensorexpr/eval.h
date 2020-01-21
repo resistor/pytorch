@@ -478,7 +478,7 @@ class SimpleIREvaluator : public IRVisitor {
       case kTrunc:
         return std::trunc(v);
       default:
-        throw std::runtime_error("invalid op_type: " + op_type);
+        throw std::runtime_error("invalid op_type: " + std::to_string(op_type));
     }
   }
 
@@ -489,7 +489,7 @@ class SimpleIREvaluator : public IRVisitor {
       case kFmod:
         return std::fmod(v1, v2);
       default:
-        throw std::runtime_error("nvalid op_type: " + op_type);
+        throw std::runtime_error("nvalid op_type: " + std::to_string(op_type));
     }
   }
 
