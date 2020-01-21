@@ -58,10 +58,31 @@ inline Dtype ToDtype<float>() {
   return kFloat32;
 }
 
-inline Dtype BinaryOpDtype(Dtype op1_dtype, Dtype op2_dtype) {
+// Optional return type in case
+// the binary Op is a CompareSelect Op
+enum ReturnType {
+  knone,
+  kint32,
+  kfloat32,
+};
+
+inline Dtype BinaryOpDtype(
+    Dtype op1_dtype,
+    Dtype op2_dtype,
+    ReturnType ret_type = ReturnType::knone) {
   if (op1_dtype == op2_dtype) {
-    return op1_dtype;
+    switch (ret_type) {
+      case ReturnType::knone:
+        return op1_dtype;
+      case ReturnType::kint32:
+        return ToDtype<int>();
+      case ReturnType::kfloat32:
+        return ToDtype<float>();
+      default:
+        throw std::runtime_error("invalid operator return type");
+    }
   }
+
   CHECK_EQ(op1_dtype.lanes(), op2_dtype.lanes()) << "vector lengths must match";
   Dtype op1_scalar = op1_dtype.scalar_type();
   Dtype op2_scalar = op2_dtype.scalar_type();

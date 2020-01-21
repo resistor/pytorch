@@ -14,13 +14,6 @@
 using namespace torch::jit::compiler;
 using namespace torch::jit::compiler::schedule;
 
-template <typename T>
-static void assertAllEqual(const std::vector<T>& vec, const T& val) {
-  for (auto const& elt : vec) {
-    ASSERT_EQ(elt, val);
-  }
-}
-
 TEST(LLVMTest, IntImmTest) {
   auto a = IntImm::make(2);
   LLVMCodeGen cg;
@@ -580,6 +573,85 @@ TEST(LLVMTest, ElemwiseMinimumNaNFloat) {
   }
 }
 #endif
+
+TEST(LLVMTest, CompareSelectIntEQ) {
+  constexpr int N = 1024;
+  Buffer a(Var("A", kHandle), kInt32, {N});
+  Buffer b(Var("B", kHandle), kInt32, {N});
+  Buffer c(Var("C", kHandle), kInt32, {N});
+  std::vector<int> a_buffer(N, 1);
+  std::vector<int> b_buffer(N, 1);
+  std::vector<int> c_buffer(N, 0);
+  std::vector<int> c_ref(N, 0);
+
+  auto mask = IntImm::make(1);
+  Var i("i", kInt32);
+  auto memcpy_expr = For::make(
+      i,
+      0,
+      N,
+      Store::make(
+          c,
+          i,
+          CompareSelect::make(
+              Load::make(a, i, mask),
+              Load::make(b, i, mask),
+              CompareSelectOperation::kEQ),
+          mask));
+
+  LLVMCodeGen cg({&a, &b, &c});
+  memcpy_expr.accept(&cg);
+
+  std::vector<void*> args({a_buffer.data(), b_buffer.data(), c_buffer.data()});
+  ASSERT_EQ(cg.value<int>(args), 0);
+
+  ASSERT_EQ(a_buffer.size(), N);
+  ASSERT_EQ(b_buffer.size(), N);
+  ASSERT_EQ(c_buffer.size(), N);
+
+  assertAllEqual(a_buffer, 1);
+  assertAllEqual(b_buffer, 1);
+  assertAllEqual(c_buffer, 1);
+}
+
+TEST(LLVMTest, CompareSelectFloatEQ) {
+  constexpr int N = 1024;
+  Buffer a(Var("A", kHandle), kFloat32, {N});
+  Buffer b(Var("B", kHandle), kFloat32, {N});
+  Buffer c(Var("C", kHandle), kInt32, {N});
+  std::vector<float> a_buffer(N, 1.0f);
+  std::vector<float> b_buffer(N, 1.0f);
+  std::vector<int> c_buffer(N, 0);
+
+  auto mask = IntImm::make(1);
+  Var i("i", kInt32);
+  auto memcpy_expr = For::make(
+      i,
+      0,
+      N,
+      Store::make(
+          c,
+          i,
+          CompareSelect::make(
+              Load::make(a, i, mask),
+              Load::make(b, i, mask),
+              CompareSelectOperation::kEQ),
+          mask));
+
+  LLVMCodeGen cg({&a, &b, &c});
+  memcpy_expr.accept(&cg);
+
+  std::vector<void*> args({a_buffer.data(), b_buffer.data(), c_buffer.data()});
+  ASSERT_EQ(cg.value<int>(args), 0);
+
+  ASSERT_EQ(a_buffer.size(), N);
+  ASSERT_EQ(b_buffer.size(), N);
+  ASSERT_EQ(c_buffer.size(), N);
+
+  assertAllEqual(a_buffer, 1.0f);
+  assertAllEqual(b_buffer, 1.0f);
+  assertAllEqual(c_buffer, 1);
+}
 
 TEST(LLVMTest, StoreFloat) {
   Buffer result(Var("result", kHandle), kFloat32, {1});

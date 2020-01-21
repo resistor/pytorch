@@ -63,6 +63,17 @@ Expr IRMutator::mutate(const Min* v) {
   return mutate_binary_op(v, this, v->propagate_nans());
 }
 
+Expr IRMutator::mutate(const CompareSelect* v) {
+  Expr lhs = v->lhs();
+  Expr rhs = v->rhs();
+  Expr lhs_new = lhs.accept_mutator(this);
+  Expr rhs_new = rhs.accept_mutator(this);
+  if (same_node(lhs, lhs_new) && same_node(rhs, rhs_new)) {
+    return Expr(v);
+  }
+  return CompareSelect::make(lhs_new, rhs_new, v->compare_select_op());
+}
+
 Expr IRMutator::mutate(const IntImm* v) {
   return Expr(v);
 }

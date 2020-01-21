@@ -152,6 +152,10 @@ class SimpleIREvaluator : public IRVisitor {
     visit_binary_op(v, v->propagate_nans());
   }
 
+  void visit(const CompareSelect* v) override {
+    visit_compare_select_op(v, v->compare_select_op());
+  }
+
   template <typename T>
   Value binary_op(
       const Value& lhs,
@@ -205,6 +209,39 @@ class SimpleIREvaluator : public IRVisitor {
     return Value(result_v);
   }
 
+  template <typename T>
+  Value compare_select_op(
+      const Value& lhs,
+      const Value& rhs,
+      CompareSelectOperation cmp_op) {
+    std::vector<T> lhs_v = lhs.as_vec<T>();
+    std::vector<T> rhs_v = rhs.as_vec<T>();
+    std::vector<int> result_v(lhs_v.size());
+    for (int i = 0; i < lhs_v.size(); i++) {
+      switch (cmp_op) {
+        case CompareSelectOperation::kEQ:
+          result_v[i] = (lhs_v[i] == rhs_v[i]) ? 1 : 0;
+          break;
+        case CompareSelectOperation::kGT:
+          result_v[i] = (lhs_v[i] > rhs_v[i]) ? 1 : 0;
+          break;
+        case CompareSelectOperation::kGE:
+          result_v[i] = (lhs_v[i] >= rhs_v[i]) ? 1 : 0;
+          break;
+        case CompareSelectOperation::kLT:
+          result_v[i] = (lhs_v[i] < rhs_v[i]) ? 1 : 0;
+          break;
+        case CompareSelectOperation::kLE:
+          result_v[i] = (lhs_v[i] <= rhs_v[i]) ? 1 : 0;
+          break;
+        default:
+          // TODO: change to a proper error report
+          throw std::runtime_error("invalid operator type");
+      }
+    }
+    return Value(result_v);
+  }
+
   template <typename Op>
   void visit_binary_op(const BinaryOpNode<Op>* v, bool option = false) {
     v->lhs().accept(this);
@@ -217,6 +254,24 @@ class SimpleIREvaluator : public IRVisitor {
       value_ = binary_op<float>(lhs_v, rhs_v, expr_type);
     } else if (lhs_v.dtype().scalar_type() == kInt32) {
       value_ = binary_op<int>(lhs_v, rhs_v, expr_type);
+    } else {
+      LOG(FATAL) << "invalid dtype: " << lhs_v.dtype();
+    }
+  }
+
+  template <typename Op>
+  void visit_compare_select_op(
+      const BinaryOpNode<Op>* v,
+      CompareSelectOperation cmp_op = CompareSelectOperation::kEQ) {
+    v->lhs().accept(this);
+    Value lhs_v = value_;
+    v->rhs().accept(this);
+    Value rhs_v = value_;
+    CHECK_EQ(lhs_v.dtype(), rhs_v.dtype());
+    if (lhs_v.dtype().scalar_type() == kFloat32) {
+      value_ = compare_select_op<float>(lhs_v, rhs_v, cmp_op);
+    } else if (lhs_v.dtype().scalar_type() == kInt32) {
+      value_ = compare_select_op<int>(lhs_v, rhs_v, cmp_op);
     } else {
       LOG(FATAL) << "invalid dtype: " << lhs_v.dtype();
     }

@@ -37,6 +37,10 @@ void IRVisitor::visit(const Min* v) {
   visit_binary_op(v, this);
 }
 
+void IRVisitor::visit(const CompareSelect* v) {
+  visit_binary_op(v, this);
+}
+
 void IRVisitor::visit(const IntImm* v) {}
 void IRVisitor::visit(const FloatImm* v) {}
 void IRVisitor::visit(const Cast* v) {
