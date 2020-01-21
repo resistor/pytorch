@@ -89,7 +89,7 @@ int Intrinsics::OpArgCount(IntrinsicsOp op_type) {
     case kPow:
       return 2;
     default:
-      throw std::runtime_error("invalid op_type: " + op_type);
+      throw std::runtime_error("invalid op_type: " + std::to_string(op_type));
   }
 }
 
@@ -144,7 +144,7 @@ std::string Intrinsics::func_name() const {
     case kFmod:
       return "fmod";
     default:
-      throw std::runtime_error("invalid op_type: " + op_type());
+      throw std::runtime_error("invalid op_type: " + std::to_string(op_type()));
   }
 }
 
