@@ -89,17 +89,13 @@ TEST(ExprTest, FuserStyle) {
   Buffer a_buf(Var("A", kHandle), kFloat32, {Expr(kTotalSize)});
   Var a = a_buf.data();
 
-  Tensor b = Compute(
-      "f",
-      {{kTotalSize, "i"}},
-      [&](const std::vector<Var>& axes) {
+  Tensor b =
+      Compute("f", {{kTotalSize, "i"}}, [&](const std::vector<Var>& axes) {
         return a_buf(axes[0]) + 11.0f;
       });
 
-  Tensor c = Compute(
-      "g",
-      {{kTotalSize, "i"}},
-      [&](const std::vector<Var>& axes) {
+  Tensor c =
+      Compute("g", {{kTotalSize, "i"}}, [&](const std::vector<Var>& axes) {
         return b(axes[0]) + 1.0f;
       });
 
