@@ -80,6 +80,28 @@ TEST(LLVMTest, FloatToIntCastTest) {
   EXPECT_EQ(cg.value<int>(), 2);
 }
 
+TEST(LLVMTest, LetTest01) {
+  Var x("x", kFloat32);
+  Expr value = Expr(3.f);
+  Expr body = Expr(2.f) + (x * Expr(3.f) + Expr(4.f));
+  Expr result = Let::make(x, Expr(3.f), body);
+  LLVMCodeGen cg({}, kFloat32);
+  result.accept(&cg);
+  EXPECT_EQ(cg.value<float>(), 2.f + (3.f * 3.f + 4.f));
+}
+
+TEST(LLVMTest, LetTest02) {
+  Var x("x", kFloat32);
+  Var y("y", kFloat32);
+  Expr value = Expr(3.f);
+  Expr body = Expr(2.f) + (x * Expr(3.f) + Expr(4.f) * y);
+  Expr e1 = Let::make(x, Expr(3.f), body);
+  Expr e2 = Let::make(y, Expr(6.f), e1);
+  LLVMCodeGen cg({}, kFloat32);
+  e2.accept(&cg);
+  EXPECT_EQ(cg.value<float>(), 2.f + (3.f * 3.f + 4.f * 6.f));
+}
+
 TEST(LLVMTest, BufferTest) {
   Buffer a(Var("A", kHandle), kFloat32, {32});
   LLVMCodeGen cg({&a});
@@ -277,7 +299,11 @@ TEST(LLVMTest, ElemwiseMaxInt) {
       i,
       0,
       N,
-      Store::make(c, i, Max::make(Load::make(a, i, mask), Load::make(b, i, mask), false), mask));
+      Store::make(
+          c,
+          i,
+          Max::make(Load::make(a, i, mask), Load::make(b, i, mask), false),
+          mask));
 
   LLVMCodeGen cg({&a, &b, &c});
   memcpy_expr.accept(&cg);
@@ -308,7 +334,11 @@ TEST(LLVMTest, ElemwiseMinInt) {
       i,
       0,
       N,
-      Store::make(c, i, Min::make(Load::make(a, i, mask), Load::make(b, i, mask), false), mask));
+      Store::make(
+          c,
+          i,
+          Min::make(Load::make(a, i, mask), Load::make(b, i, mask), false),
+          mask));
 
   LLVMCodeGen cg({&a, &b, &c});
   memcpy_expr.accept(&cg);
@@ -339,7 +369,11 @@ TEST(LLVMTest, ElemwiseMaxNumFloat) {
       i,
       0,
       N,
-      Store::make(c, i, Max::make(Load::make(a, i, mask), Load::make(b, i, mask), false), mask));
+      Store::make(
+          c,
+          i,
+          Max::make(Load::make(a, i, mask), Load::make(b, i, mask), false),
+          mask));
 
   LLVMCodeGen cg({&a, &b, &c});
   memcpy_expr.accept(&cg);
@@ -370,7 +404,11 @@ TEST(LLVMTest, ElemwiseMaxNumNaNFloat) {
       i,
       0,
       N,
-      Store::make(c, i, Max::make(Load::make(a, i, mask), Load::make(b, i, mask), false), mask));
+      Store::make(
+          c,
+          i,
+          Max::make(Load::make(a, i, mask), Load::make(b, i, mask), false),
+          mask));
 
   LLVMCodeGen cg({&a, &b, &c});
   memcpy_expr.accept(&cg);
@@ -400,7 +438,11 @@ TEST(LLVMTest, ElemwiseMinNumFloat) {
       i,
       0,
       N,
-      Store::make(c, i, Min::make(Load::make(a, i, mask), Load::make(b, i, mask), false), mask));
+      Store::make(
+          c,
+          i,
+          Min::make(Load::make(a, i, mask), Load::make(b, i, mask), false),
+          mask));
 
   LLVMCodeGen cg({&a, &b, &c});
   memcpy_expr.accept(&cg);
@@ -431,7 +473,11 @@ TEST(LLVMTest, ElemwiseMinNumNaNFloat) {
       i,
       0,
       N,
-      Store::make(c, i, Min::make(Load::make(a, i, mask), Load::make(b, i, mask), false), mask));
+      Store::make(
+          c,
+          i,
+          Min::make(Load::make(a, i, mask), Load::make(b, i, mask), false),
+          mask));
 
   LLVMCodeGen cg({&a, &b, &c});
   memcpy_expr.accept(&cg);
@@ -462,7 +508,11 @@ TEST(LLVMTest, ElemwiseMaximumFloat) {
       i,
       0,
       N,
-      Store::make(c, i, Max::make(Load::make(a, i, mask), Load::make(b, i, mask), true), mask));
+      Store::make(
+          c,
+          i,
+          Max::make(Load::make(a, i, mask), Load::make(b, i, mask), true),
+          mask));
 
   LLVMCodeGen cg({&a, &b, &c});
   memcpy_expr.accept(&cg);
@@ -493,7 +543,11 @@ TEST(LLVMTest, ElemwiseMaximumNaNFloat) {
       i,
       0,
       N,
-      Store::make(c, i, Max::make(Load::make(a, i, mask), Load::make(b, i, mask), true), mask));
+      Store::make(
+          c,
+          i,
+          Max::make(Load::make(a, i, mask), Load::make(b, i, mask), true),
+          mask));
 
   LLVMCodeGen cg({&a, &b, &c});
   memcpy_expr.accept(&cg);
@@ -525,7 +579,11 @@ TEST(LLVMTest, ElemwiseMinimumFloat) {
       i,
       0,
       N,
-      Store::make(c, i, Min::make(Load::make(a, i, mask), Load::make(b, i, mask), true), mask));
+      Store::make(
+          c,
+          i,
+          Min::make(Load::make(a, i, mask), Load::make(b, i, mask), true),
+          mask));
 
   LLVMCodeGen cg({&a, &b, &c});
   memcpy_expr.accept(&cg);
@@ -556,7 +614,11 @@ TEST(LLVMTest, ElemwiseMinimumNaNFloat) {
       i,
       0,
       N,
-      Store::make(c, i, Min::make(Load::make(a, i, mask), Load::make(b, i, mask), true), mask));
+      Store::make(
+          c,
+          i,
+          Min::make(Load::make(a, i, mask), Load::make(b, i, mask), true),
+          mask));
 
   LLVMCodeGen cg({&a, &b, &c});
   memcpy_expr.accept(&cg);

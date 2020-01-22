@@ -339,7 +339,19 @@ void LLVMCodeGen::visit(const Variable* v) {
   }
 }
 
-void LLVMCodeGen::visit(const Let* v) {}
+void LLVMCodeGen::visit(const Let* v) {
+  const Variable* var = v->var().AsNode<Variable>();
+  CHECK(var != nullptr);
+  v->value().accept(this);
+  auto value = value_;
+  if (!varToVal_.count(var)) {
+    varToVal_.emplace(var, value);
+  } else {
+    throw std::runtime_error("var should not exist before");
+  }
+  v->body().accept(this);
+  varToVal_.erase(var);
+}
 
 void LLVMCodeGen::visit(const Ramp* v) {
   v->base().accept(this);
