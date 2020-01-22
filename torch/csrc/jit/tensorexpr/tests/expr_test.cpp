@@ -39,14 +39,14 @@ TEST(ExprTest, LetTest01) {
   EXPECT_EQ(eval.value().as<float>(), 2 + (3 * 3 + 4));
 }
 
-TEST(ExprTest, DISABLED_LetTest02) {
+TEST(ExprTest, LetTest02) {
   Var x("x", kFloat32);
   Var y("y", kFloat32);
   Expr value = Expr(3.f);
   Expr body = Expr(2.f) + (x * Expr(3.f) + Expr(4.f) * y);
   Expr e1 = Let::make(x, Expr(3.f), body);
   Expr e2 = Let::make(y, Expr(6.f), e1);
-  SimpleIREvaluator eval(2);
+  SimpleIREvaluator eval(e2);
   eval();
   EXPECT_EQ(eval.value().as<float>(), 2 + (3 * 3 + 4 * 6));
 }
