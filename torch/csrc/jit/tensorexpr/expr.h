@@ -109,6 +109,12 @@ class Expr : public RefHandle<BaseExprNode> {
   Expr operator-(const Expr& other) const;
   Expr operator*(const Expr& other) const;
   Expr operator/(const Expr& other) const;
+  Expr operator==(const Expr& other) const;
+  Expr operator!=(const Expr& other) const;
+  Expr operator>(const Expr& other) const;
+  Expr operator>=(const Expr& other) const;
+  Expr operator<(const Expr& other) const;
+  Expr operator<=(const Expr& other) const;
 };
 
 class Stmt : public RefHandle<BaseStmtNode> {

@@ -644,7 +644,12 @@ TEST(LLVMTest, CompareSelectIntEQ) {
   std::vector<int> a_buffer(N, 1);
   std::vector<int> b_buffer(N, 1);
   std::vector<int> c_buffer(N, 0);
-  std::vector<int> c_ref(N, 0);
+  std::vector<int> c_ref(N, 1);
+
+  for (int i = 0; i < N / 2; i++) {
+    b_buffer[i] = 0;
+    c_ref[i] = 0;
+  }
 
   auto mask = IntImm::make(1);
   Var i("i", kInt32);
@@ -672,8 +677,9 @@ TEST(LLVMTest, CompareSelectIntEQ) {
   ASSERT_EQ(c_buffer.size(), N);
 
   assertAllEqual(a_buffer, 1);
-  assertAllEqual(b_buffer, 1);
-  assertAllEqual(c_buffer, 1);
+  for (int i = 0; i < N; i++) {
+    ASSERT_EQ(c_ref[i], c_buffer[i]);
+  }
 }
 
 TEST(LLVMTest, CompareSelectFloatEQ) {
