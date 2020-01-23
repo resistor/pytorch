@@ -350,7 +350,11 @@ void LLVMCodeGen::visit(const Let* v) {
     throw std::runtime_error("var should not exist before");
   }
   v->body().accept(this);
-  varToVal_.erase(var);
+  if (varToVal_.count(var)) {
+    varToVal_.erase(var);
+  } else {
+    throw std::runtime_error("erasing var that doesn't exist");
+  }
 }
 
 void LLVMCodeGen::visit(const Ramp* v) {
