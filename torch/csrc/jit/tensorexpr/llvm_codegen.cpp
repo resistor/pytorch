@@ -250,6 +250,9 @@ void LLVMCodeGen::visit(const CompareSelect* v) {
       case CompareSelectOperation::kEQ:
         cmp_ = irb_.CreateICmpEQ(lhs, rhs);
         break;
+      case CompareSelectOperation::kNE:
+        cmp_ = irb_.CreateICmpNE(lhs, rhs);
+        break;
       case CompareSelectOperation::kGT:
         cmp_ = irb_.CreateICmpSGT(lhs, rhs);
         break;

@@ -122,7 +122,7 @@ class SimpleIREvaluator : public IRVisitor {
       : ir_node_(expr.node()), buffer_args_({BufferArg(ts)...}) {}
 
   template <typename Buf>
-  void bindBuffer(Buf b, void *d) {
+  void bindBuffer(Buf b, void* d) {
     buffer_mapping_[BufferArg(b).var().node()] = d;
   }
 
@@ -231,6 +231,9 @@ class SimpleIREvaluator : public IRVisitor {
         case CompareSelectOperation::kEQ:
           result_v[i] = (lhs_v[i] == rhs_v[i]) ? 1 : 0;
           break;
+        case CompareSelectOperation::kNE:
+          result_v[i] = (lhs_v[i] != rhs_v[i]) ? 1 : 0;
+          break;
         case CompareSelectOperation::kGT:
           result_v[i] = (lhs_v[i] > rhs_v[i]) ? 1 : 0;
           break;
@@ -271,7 +274,7 @@ class SimpleIREvaluator : public IRVisitor {
   template <typename Op>
   void visit_compare_select_op(
       const BinaryOpNode<Op>* v,
-      CompareSelectOperation cmp_op = CompareSelectOperation::kEQ) {
+      CompareSelectOperation cmp_op) {
     v->lhs().accept(this);
     Value lhs_v = value_;
     v->rhs().accept(this);
