@@ -194,12 +194,44 @@ Buffer texprBuffer(const torch::jit::Value* v) {
 }
 
 template <typename T>
-size_t bufferSize(T t) {
-  size_t size = 1;
+int64_t bufferSize(T t) {
+  int64_t size = 1;
   for (int i = 0; i < t.ndim(); i++) {
     size *= t.dim(i).template AsNode<IntImm>()->value();
   }
   return size;
+}
+
+template <typename T>
+std::vector<int64_t> bufferSizes(const T& t) {
+  std::vector<int64_t> sizes;
+  for (int i = 0; i < t.ndim(); i++) {
+    sizes.push_back(t.dim(i).template AsNode<IntImm>()->value());
+  }
+  return sizes;
+}
+
+template <typename T>
+std::vector<Expr> computeIndicesToBroadcast(
+    const std::vector<T>& output_axes,
+    const std::vector<int64_t>& input_sizes) {
+  TORCH_CHECK(
+      output_axes.size() >= input_sizes.size(),
+      "Cannot broadcast to a lower rank tensor");
+  std::vector<Expr> bcast;
+  auto axis_it = output_axes.rbegin();
+  auto size_it = input_sizes.rbegin();
+  while (size_it != input_sizes.rend()) {
+    if (*size_it == 1) {
+      bcast.push_back(0);
+    } else {
+      bcast.push_back(*axis_it);
+    }
+    ++axis_it;
+    ++size_it;
+  }
+  std::reverse(bcast.begin(), bcast.end());
+  return bcast;
 }
 
 struct TensorExprKernel {
@@ -221,7 +253,8 @@ struct TensorExprKernel {
               "input",
               texprDims(input),
               [in_buffer](const std::vector<Var>& axes) {
-                return in_buffer(axes[0]);
+                return in_buffer.call(
+                    computeIndicesToBroadcast(axes, bufferSizes(in_buffer)));
               }));
       buffer_args.push_back(std::move(in_buffer));
     }
@@ -250,7 +283,10 @@ struct TensorExprKernel {
                 "aten_add",
                 texprDims(n->output()),
                 [&lhs, &rhs](const std::vector<Var>& axes) {
-                  return lhs(axes[0]) + rhs(axes[0]);
+                  return lhs.call(computeIndicesToBroadcast(
+                             axes, bufferSizes(lhs))) +
+                      rhs.call(
+                          computeIndicesToBroadcast(axes, bufferSizes(rhs)));
                 }));
         continue;
       }
@@ -277,7 +313,7 @@ struct TensorExprKernel {
     }
 
     at::Tensor output =
-        at::empty(bufferSize(*tensor_output), at::ScalarType::Float);
+        at::empty(bufferSizes(*tensor_output), at::ScalarType::Float);
     eval.bindBuffer(*tensor_output, output.data_ptr());
 
     eval.eval();
