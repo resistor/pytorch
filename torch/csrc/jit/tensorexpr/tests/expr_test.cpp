@@ -5,7 +5,6 @@
 #include <cmath>
 
 #include "torch/csrc/jit/tensorexpr/ir_printer.h"
-#include "torch/csrc/jit/tensorexpr/schedule.h"
 #include "torch/csrc/jit/tensorexpr/tests/test_utils.h"
 
 using namespace torch::jit::compiler;
@@ -79,38 +78,6 @@ TEST(ExprTest, NoLeakTest01) {
     r = test_01(r);
   }
   ASSERT_EQ(RefCounted::CheckNoLiveRefCount(), true) << "leaked refcounted object after the test";
-}
-
-TEST(ExprTest, FuserStyle) {
-  const int kVectorSize = 8;
-  const int kVectorCount = 128;
-  const int kTotalSize = kVectorSize * kVectorCount;
-
-  Buffer a_buf(Var("A", kHandle), kFloat32, {Expr(kTotalSize)});
-  Var a = a_buf.data();
-
-  Tensor b =
-      Compute("f", {{kTotalSize, "i"}}, [&](const std::vector<Var>& axes) {
-        return a_buf(axes[0]) + 11.0f;
-      });
-
-  Tensor c =
-      Compute("g", {{kTotalSize, "i"}}, [&](const std::vector<Var>& axes) {
-        return b(axes[0]) + 1.0f;
-      });
-
-  torch::jit::compiler::schedule::Schedule sch({b, c});
-  Stmt s = sch.Lower();
-
-  std::vector<float> a_data(kTotalSize, 7.0f);
-  std::vector<float> b_data(kTotalSize, 0.0f);
-  std::vector<float> c_data(kTotalSize, 0.0f);
-  SimpleIREvaluator(s, a_buf, b, c)(a_data, b_data, c_data);
-
-  for (int i = 0; i < kTotalSize; i++) {
-    ASSERT_EQ(b_data[i], 18.0f);
-    ASSERT_EQ(c_data[i], 19.0f);
-  }
 }
 
 TEST(ExprTest, VectorAdd01) {

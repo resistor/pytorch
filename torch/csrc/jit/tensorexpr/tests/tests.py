@@ -119,3 +119,40 @@ def test_broadcast_2():
     r = traced(x, y, z)
     rnp = foo_np(x.numpy(), y.numpy(), z.numpy())
     np.testing.assert_allclose(r, rnp)
+
+def test_alpha():
+    def alpha(x):
+        aaa = torch.add(x, x, alpha=2.0)
+        return aaa
+
+    traced = torch.jit.trace(alpha, (torch.tensor([1.0])))
+
+    a = torch.tensor([1.0])
+    x = traced(a)
+    np.testing.assert_allclose(a.numpy() + 2.0 * a.numpy(), x.numpy())
+
+def test_constant():
+    def constant(x):
+        bbb = torch.tensor([1.0])
+        aaa = torch.add(x, bbb)
+        return aaa
+
+    traced = torch.jit.trace(constant, (torch.tensor([1.0])))
+
+    a = torch.tensor([1.0])
+    x = traced(a)
+    np.testing.assert_allclose(a.numpy() + 1.0, x.numpy())
+
+def test_add_sub():
+    def easy(x, y, z):
+        aaa = torch.add(x, y)
+        bbb = torch.sub(aaa, z)
+        return bbb
+
+    traced = torch.jit.trace(easy, (torch.rand(1024), torch.rand(1024), torch.rand(1024)))
+
+    a = torch.rand(1024)
+    b = torch.rand(1024)
+    c = torch.rand(1024)
+    x = traced(a, b, c)
+    np.testing.assert_allclose(a.numpy() + b.numpy() - c.numpy(), x.numpy())

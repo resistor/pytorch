@@ -12,6 +12,8 @@
 #include <torch/csrc/jit/tensorexpr/schedule.h>
 #include <torch/csrc/jit/tensorexpr/tensor.h>
 
+#define TX_DEBUG 1
+
 using namespace torch::jit;
 using namespace torch::jit::compiler;
 
@@ -43,7 +45,13 @@ value_list sortReverseTopological(
 
 bool isSupported(Node* node) {
   // TODO:
-  return node->kind() == Symbol::fromQualString("aten::add");
+  switch (node->kind()) {
+  case aten::add:
+  case aten::sub:
+    return true;
+  default:
+    return false;
+  }
 }
 
 bool canHandle(Node* node, AliasDb& aliasDb) {
@@ -103,13 +111,22 @@ c10::optional<Node*> tryMerge(
       consumer->kind() != getTensorExprSymbol()) {
     consumer =
         SubgraphUtils::createSingletonSubgraph(consumer, getTensorExprSymbol());
+
+    // createSingletonSubgraph pre-emptively folds constants into the subgraph,
+    // so there's nothing more for us to do.
+    if (producer->kind() == prim::Constant) {
+      return consumer;
+    }
   }
+
   if (producer->kind() == prim::Constant) {
     auto& subgraph = consumer->g(attr::Subgraph);
     Node* in_const = subgraph->createClone(
         producer, [](torch::jit::Value*) -> torch::jit::Value* {
           throw std::runtime_error("unexpected input");
         });
+
+    subgraph->setInsertPoint(producer);
     subgraph->insertNode(in_const);
   } else {
     SubgraphUtils::mergeNodeIntoSubgraph(producer, consumer);
@@ -238,7 +255,41 @@ struct TensorExprKernel {
   std::vector<Buffer> buffer_args;
   Tensor* tensor_output;
   std::unordered_map<int64_t, Tensor> tensors;
+  std::unordered_map<int64_t, Expr> constants;
   Stmt stmt;
+
+  Expr constant(torch::jit::Value* v) {
+    if (v->node()->kind() == prim::Constant) {
+      const auto val = toIValue(v).value();
+      if (val.isDouble()) {
+        return FloatImm::make(val.toDouble());
+      } else if (val.isInt()) {
+        return IntImm::make(val.toInt());
+      } else {
+        LOG(FATAL) << "Unhandled constant datatype";
+      }
+    }
+
+    LOG(FATAL) << "Not a constant!";
+    return Expr();
+  }
+
+  template <typename T>
+  Expr constantOrTensor(torch::jit::Value* v,
+                        T&& alternative) {
+    if (v->node()->kind() == prim::Constant) {
+      const auto val = toIValue(v).value();
+      if (val.isDouble()) {
+        return FloatImm::make(val.toDouble());
+      } else if (val.isInt()) {
+        return IntImm::make(val.toInt());
+      } else {
+        LOG(FATAL) << "Unhandled constant datatype";
+      }
+    }
+
+    return alternative(tensors.at(v->unique()));
+  }
 
   explicit TensorExprKernel(const Node* node) {
     auto subgraph = node->g(attr::Subgraph);
@@ -260,38 +311,52 @@ struct TensorExprKernel {
     }
 
     // Bind nodes to tensor compute expressions.
-    std::unordered_map<int64_t, Expr> constants;
     for (auto const& n : subgraph->nodes()) {
-      if (n->kind() == prim::Constant) {
-        const auto val = toIValue(n->output()).value();
-        if (val.isDouble()) {
-          constants[n->output()->unique()] = FloatImm::make(val.toDouble());
-        } else if (val.isInt()) {
-          constants[n->output()->unique()] = IntImm::make(val.toInt());
-        } else {
-          LOG(FATAL) << "Unhandled constant datatype";
-        }
-        continue;
-      }
+      switch (n->kind()) {
+      case prim::Constant: continue;
 
-      if (n->kind() == aten::add) {
-        auto const& lhs = tensors.at(n->inputs()[0]->unique());
-        auto const& rhs = tensors.at(n->inputs()[1]->unique());
+      case aten::add:
+      case aten::sub: {
         tensors.emplace(
             n->output()->unique(),
             Compute(
-                "aten_add",
+                "aten_add_sub",
                 texprDims(n->output()),
-                [&lhs, &rhs](const std::vector<Var>& axes) {
-                  return lhs.call(computeIndicesToBroadcast(
-                             axes, bufferSizes(lhs))) +
-                      rhs.call(
-                          computeIndicesToBroadcast(axes, bufferSizes(rhs)));
-                }));
-        continue;
-      }
+                [&n, this](const std::vector<Var>& axes) {
+                  Expr lhs_expr = constantOrTensor(n->inputs()[0],
+                    [&](const Tensor& t) {
+                      return t.call(computeIndicesToBroadcast(
+                        axes, bufferSizes(t)));
+                    }
+                  );
 
-      LOG(FATAL) << "Unhandled node kind";
+                  Expr rhs_expr = constantOrTensor(n->inputs()[1],
+                    [&](const Tensor& t) {
+                      return t.call(computeIndicesToBroadcast(
+                        axes, bufferSizes(t)));
+                    }
+                  );
+
+                  Expr alpha_expr = constant(n->inputs()[2]);
+
+                  // Promote integer alpha to float if needed.
+                  if (alpha_expr.dtype() == kInt32 &&
+                      rhs_expr.dtype() == kFloat32) {
+                    alpha_expr = cast<float>(alpha_expr);
+                  }
+
+                  if (n->kind() == aten::add) {
+                    return lhs_expr + (alpha_expr * rhs_expr);
+                  } else {
+                    return lhs_expr - (alpha_expr * rhs_expr);
+                  }
+                }));
+      } break;
+
+      default: {
+        LOG(FATAL) << "Unhandled node kind";
+      }
+      }
     }
 
     CHECK(subgraph->outputs().size() == 1)
@@ -300,6 +365,12 @@ struct TensorExprKernel {
     CHECK(tensors.count(output->unique())) << "Output must be a tensor";
     tensor_output = &tensors.at(output->unique());
     torch::jit::compiler::schedule::Schedule sch({*tensor_output});
+    for (auto& p : tensors) {
+      auto& t = p.second;
+      if (&t != tensor_output) {
+        t.ComputeInline();
+      }
+    }
     stmt = sch.Lower();
   }
 

@@ -225,7 +225,7 @@ static std::string remove_space(const std::string& str) {
   return str_new;
 }
 
-TEST(ScheduleTest, InlineFunc01) {
+void InlineFunc01Helper(const std::vector<std::string>& inline_order) {
   const int M = 4;
   const int N = 5;
   const int K = 6;
@@ -236,26 +236,33 @@ TEST(ScheduleTest, InlineFunc01) {
 
   Tensor x = Compute(
       "x",
-      {{M, "m"}, {N, "n"}, {K, "k"}},
+      {{M, "m1"}, {N, "n1"}, {K, "k1"}},
       [&](const Var& m, const Var& n, const Var& k) {
         return a_buf(m, n) * b_buf(n, k);
       });
   Tensor y = Compute(
       "y",
-      {{M, "m"}, {N, "n"}, {K, "k"}},
+      {{M, "m2"}, {N, "n2"}, {K, "k2"}},
       [&](const Var& m, const Var& n, const Var& k) {
-        return c_buf(m, n) * d_buf(m, k);
+        return c_buf(m, n) * d_buf(m, k) + x(m, n, k);
       });
   Tensor z = Compute(
       "z",
-      {{M, "m"}, {N, "n"}, {K, "k"}},
+      {{M, "m3"}, {N, "n3"}, {K, "k3"}},
       [&](const Var& m, const Var& n, const Var& k) {
         return x(m, n, k) + y(m, n, k);
       });
 
   Schedule sch({z});
-  x.ComputeInline();
-  y.ComputeInline();
+  for (const std::string& order : inline_order) {
+    if (order == "x") {
+      x.ComputeInline();
+    } else if (order == "y") {
+      y.ComputeInline();
+    } else {
+      throw std::runtime_error("Invalid order: " + order);
+    }
+  }
   Stmt stmt = sch.Lower();
 
   std::ostringstream oss;
@@ -294,7 +301,7 @@ TEST(ScheduleTest, InlineFunc01) {
     for (int m = 0; m < M; m++) {
       for (int n = 0; n < N; n++) {
         for (int k = 0; k < K; k++) {
-          z_ref(m, n, k) = a_v(m, n) * b_v(n, k) + c_v(m, n) * d_v(m, k);
+          z_ref(m, n, k) = a_v(m, n) * b_v(n, k) * 2 + c_v(m, n) * d_v(m, k);
         }
       }
     }
@@ -304,12 +311,13 @@ TEST(ScheduleTest, InlineFunc01) {
     ExpectAllNear(z_v, z_ref, 1e-5);
   }
 
-  {
+  if (inline_order.size() == 2) {
     Tensor z2 = Compute(
         "z",
-        {{M, "m"}, {N, "n"}, {K, "k"}},
+        {{M, "m3"}, {N, "n3"}, {K, "k3"}},
         [&](const Var& m, const Var& n, const Var& k) {
-          return a_buf(m, n) * b_buf(n, k) + c_buf(m, n) * d_buf(m, k);
+          return a_buf(m, n) * b_buf(n, k) +
+              (c_buf(m, n) * d_buf(m, k) + a_buf(m, n) * b_buf(n, k));
         });
     Schedule sch2({z2});
     Stmt stmt2 = sch2.Lower();
@@ -320,5 +328,79 @@ TEST(ScheduleTest, InlineFunc01) {
 
     ASSERT_EQ(str1, str2);
     ASSERT_GT(str1.size(), 100);
+  }
+}
+
+TEST(ScheduleTest, InlineFunc01) {
+  InlineFunc01Helper({"x", "y"});
+  InlineFunc01Helper({"y", "x"});
+  InlineFunc01Helper({"x"});
+  InlineFunc01Helper({"y"});
+  InlineFunc01Helper({});
+}
+
+TEST(ScheduleTest, FuserStyle) {
+  const int kVectorSize = 8;
+  const int kVectorCount = 128;
+  const int kTotalSize = kVectorSize * kVectorCount;
+
+  Buffer a_buf(Var("A", kHandle), kFloat32, {Expr(kTotalSize)});
+  Var a = a_buf.data();
+
+  Tensor b =
+      Compute("f", {{kTotalSize, "i"}}, [&](const std::vector<Var>& axes) {
+        return a_buf(axes[0]) + 11.0f;
+      });
+
+  Tensor c =
+      Compute("g", {{kTotalSize, "i"}}, [&](const std::vector<Var>& axes) {
+        return b(axes[0]) + 1.0f;
+      });
+
+  Schedule sch({b, c});
+  Stmt s = sch.Lower();
+
+  std::vector<float> a_data(kTotalSize, 7.0f);
+  std::vector<float> b_data(kTotalSize, 0.0f);
+  std::vector<float> c_data(kTotalSize, 0.0f);
+  SimpleIREvaluator(s, a_buf, b, c)(a_data, b_data, c_data);
+
+  for (int i = 0; i < kTotalSize; i++) {
+    ASSERT_EQ(b_data[i], 18.0f);
+    ASSERT_EQ(c_data[i], 19.0f);
+  }
+}
+
+TEST(ScheduleTest, FuserThreeArg) {
+  const int kVectorSize = 8;
+  const int kVectorCount = 128;
+  const int kTotalSize = kVectorSize * kVectorCount;
+
+  Buffer a(Var("A", kHandle), kFloat32, {Expr(kTotalSize)});
+  Buffer b(Var("B", kHandle), kFloat32, {Expr(kTotalSize)});
+  Buffer c(Var("C", kHandle), kFloat32, {Expr(kTotalSize)});
+  Buffer d(Var("D", kHandle), kFloat32, {Expr(kTotalSize)});
+
+  Tensor e = Compute("e", {{kTotalSize, "i"}},
+                     [&](const Var& i) { return a(i) + b(i); });
+  Tensor f = Compute("f", {{kTotalSize, "i"}},
+                     [&](const Var& i) { return e(i) + c(i); });
+  Tensor g = Compute("g", {{kTotalSize, "i"}},
+                     [&](const Var& i) { return f(i) + d(i); });
+
+  Schedule sch({g});
+  e.ComputeInline();
+  f.ComputeInline();
+  Stmt s = sch.Lower();
+
+  std::vector<float> a_data(kTotalSize, 1.0f);
+  std::vector<float> b_data(kTotalSize, 2.0f);
+  std::vector<float> c_data(kTotalSize, 3.0f);
+  std::vector<float> d_data(kTotalSize, 4.0f);
+  std::vector<float> g_data(kTotalSize, 0.0f);
+  SimpleIREvaluator(s, a, b, c, d, g)(a_data, b_data, c_data, d_data, g_data);
+
+  for (int i = 0; i < kTotalSize; i++) {
+    ASSERT_EQ(g_data[i], 10.0f);
   }
 }
