@@ -1,4 +1,5 @@
 #ifdef ENABLE_LLVM
+#include "test/cpp/tensorexpr/test_base.h"
 
 #include "torch/csrc/jit/tensorexpr/ir.h"
 #include "torch/csrc/jit/tensorexpr/ir_printer.h"
@@ -7,26 +8,26 @@
 #include "torch/csrc/jit/tensorexpr/tensor.h"
 #include "torch/csrc/jit/tensorexpr/tests/test_utils.h"
 
-#include <gtest/gtest.h>
-
 #include <numeric>
 
+namespace torch {
+namespace jit {
 using namespace torch::jit::compiler;
 using namespace torch::jit::compiler::schedule;
 
-TEST(LLVMTest, IntImmTest) {
+void testLLVMIntImmTest() {
   auto a = IntImm::make(2);
   LLVMCodeGen cg(a);
   EXPECT_EQ(cg.value<int>(), 2);
 }
 
-TEST(LLVMTest, FloatImmTest) {
+void testLLVMFloatImmTest() {
   auto a = FloatImm::make(1.0);
   LLVMCodeGen cg(a, {}, kFloat32);
   EXPECT_EQ(cg.value<float>(), 1.0);
 }
 
-TEST(LLVMTest, IntAddTest) {
+void testLLVMIntAddTest() {
   auto a = IntImm::make(2);
   auto b = IntImm::make(3);
   auto c = Add::make(a, b);
@@ -34,7 +35,7 @@ TEST(LLVMTest, IntAddTest) {
   EXPECT_EQ(cg.value<int>(), 5);
 }
 
-TEST(LLVMTest, IntSubTest) {
+void testLLVMIntSubTest() {
   auto a = IntImm::make(2);
   auto b = IntImm::make(3);
   auto c = Sub::make(a, b);
@@ -42,7 +43,7 @@ TEST(LLVMTest, IntSubTest) {
   EXPECT_EQ(cg.value<int>(), -1);
 }
 
-TEST(LLVMTest, IntMulTest) {
+void testLLVMIntMulTest() {
   auto a = IntImm::make(2);
   auto b = IntImm::make(3);
   auto c = Mul::make(a, b);
@@ -50,7 +51,7 @@ TEST(LLVMTest, IntMulTest) {
   EXPECT_EQ(cg.value<int>(), 6);
 }
 
-TEST(LLVMTest, IntDivTest) {
+void testLLVMIntDivTest() {
   auto a = IntImm::make(6);
   auto b = IntImm::make(3);
   auto c = Div::make(a, b);
@@ -58,21 +59,21 @@ TEST(LLVMTest, IntDivTest) {
   EXPECT_EQ(cg.value<int>(), 2);
 }
 
-TEST(LLVMTest, IntToFloatCastTest) {
+void testLLVMIntToFloatCastTest() {
   auto a = IntImm::make(2);
   auto b = Cast::make(kFloat32, a);
   LLVMCodeGen cg(b, {}, kFloat32);
   EXPECT_EQ(cg.value<float>(), 2.0);
 }
 
-TEST(LLVMTest, FloatToIntCastTest) {
+void testLLVMFloatToIntCastTest() {
   auto a = FloatImm::make(2.0);
   auto b = Cast::make(kInt32, a);
   LLVMCodeGen cg(b);
   EXPECT_EQ(cg.value<int>(), 2);
 }
 
-TEST(LLVMTest, LetTest01) {
+void testLLVMLetTest01() {
   Var x("x", kFloat32);
   Expr value = Expr(3.f);
   Expr body = Expr(2.f) + (x * Expr(3.f) + Expr(4.f));
@@ -81,7 +82,7 @@ TEST(LLVMTest, LetTest01) {
   EXPECT_EQ(cg.value<float>(), 2.f + (3.f * 3.f + 4.f));
 }
 
-TEST(LLVMTest, LetTest02) {
+void testLLVMLetTest02() {
   Var x("x", kFloat32);
   Var y("y", kFloat32);
   Expr value = Expr(3.f);
@@ -92,7 +93,7 @@ TEST(LLVMTest, LetTest02) {
   EXPECT_EQ(cg.value<float>(), 2.f + (3.f * 3.f + 4.f * 6.f));
 }
 
-TEST(LLVMTest, BufferTest) {
+void testLLVMBufferTest() {
   Buffer a(Var("A", kHandle), kFloat32, {32});
   std::vector<int32_t> v(5);
   std::vector<void*> args({v.data()});
@@ -101,7 +102,7 @@ TEST(LLVMTest, BufferTest) {
   EXPECT_EQ(cg.value<int>(args), 0);
 }
 
-TEST(LLVMTest, BlockTest) {
+void testLLVMBlockTest() {
   Buffer a(Var("A", kHandle), kInt32, {32});
   std::vector<int32_t> v = {1, 2};
   std::vector<void*> args({v.data()});
@@ -118,7 +119,7 @@ TEST(LLVMTest, BlockTest) {
   EXPECT_EQ(v[1], 4);
 }
 
-TEST(LLVMTest, LoadStoreTest) {
+void testLLVMLoadStoreTest() {
   Buffer a(Var("A", kHandle), kInt32, {1});
   Buffer b(Var("B", kHandle), kInt32, {1});
   std::vector<int32_t> a_buffer = {42};
@@ -136,7 +137,7 @@ TEST(LLVMTest, LoadStoreTest) {
   EXPECT_EQ(b_buffer[0], 42);
 }
 
-TEST(LLVMTest, VecLoadStoreTest) {
+void testLLVMVecLoadStoreTest() {
   Buffer a(Var("A", kHandle), kInt32, {1});
   Buffer b(Var("B", kHandle), kInt32, {1});
   std::vector<int32_t> a_buffer = {1, 1, 1, 1};
@@ -160,7 +161,7 @@ TEST(LLVMTest, VecLoadStoreTest) {
   EXPECT_EQ(b_buffer[3], 1);
 }
 
-TEST(LLVMTest, MemcpyTest) {
+void testLLVMMemcpyTest() {
   constexpr int N = 32;
   Buffer a(Var("A", kHandle), kInt32, {N});
   Buffer b(Var("B", kHandle), kInt32, {N});
@@ -183,7 +184,7 @@ TEST(LLVMTest, MemcpyTest) {
   assertAllEqual(b_buffer, 42);
 }
 
-TEST(LLVMTest, BzeroTest) {
+void testLLVMBzeroTest() {
   constexpr int N = 32;
   Buffer b(Var("B", kHandle), kInt32, {N});
   std::vector<int32_t> b_buffer(N, 11);
@@ -202,7 +203,7 @@ TEST(LLVMTest, BzeroTest) {
   assertAllEqual(b_buffer, 0);
 }
 
-TEST(LLVMTest, ElemwiseAdd) {
+void testLLVMElemwiseAdd() {
   constexpr int N = 1024;
   Buffer a(Var("A", kHandle), kInt32, {N});
   Buffer b(Var("B", kHandle), kInt32, {N});
@@ -236,7 +237,7 @@ TEST(LLVMTest, ElemwiseAdd) {
   assertAllEqual(c_buffer, 42);
 }
 
-TEST(LLVMTest, ElemwiseAddFloat) {
+void testLLVMElemwiseAddFloat() {
   constexpr int N = 1024;
   Buffer a(Var("A", kHandle), kFloat32, {N});
   Buffer b(Var("B", kHandle), kFloat32, {N});
@@ -266,7 +267,7 @@ TEST(LLVMTest, ElemwiseAddFloat) {
   assertAllEqual(c_buffer, 42.0f);
 }
 
-TEST(LLVMTest, ElemwiseMaxInt) {
+void testLLVMElemwiseMaxInt() {
   constexpr int N = 1024;
   Buffer a(Var("A", kHandle), kInt32, {N});
   Buffer b(Var("B", kHandle), kInt32, {N});
@@ -300,7 +301,7 @@ TEST(LLVMTest, ElemwiseMaxInt) {
   assertAllEqual(c_buffer, 41);
 }
 
-TEST(LLVMTest, ElemwiseMinInt) {
+void testLLVMElemwiseMinInt() {
   constexpr int N = 1024;
   Buffer a(Var("A", kHandle), kInt32, {N});
   Buffer b(Var("B", kHandle), kInt32, {N});
@@ -334,7 +335,7 @@ TEST(LLVMTest, ElemwiseMinInt) {
   assertAllEqual(c_buffer, 1);
 }
 
-TEST(LLVMTest, ElemwiseMaxNumFloat) {
+void testLLVMElemwiseMaxNumFloat() {
   constexpr int N = 1024;
   Buffer a(Var("A", kHandle), kFloat32, {N});
   Buffer b(Var("B", kHandle), kFloat32, {N});
@@ -368,7 +369,7 @@ TEST(LLVMTest, ElemwiseMaxNumFloat) {
   assertAllEqual(c_buffer, 41.0f);
 }
 
-TEST(LLVMTest, ElemwiseMaxNumNaNFloat) {
+void testLLVMElemwiseMaxNumNaNFloat() {
   constexpr int N = 1024;
   Buffer a(Var("A", kHandle), kFloat32, {N});
   Buffer b(Var("B", kHandle), kFloat32, {N});
@@ -401,7 +402,7 @@ TEST(LLVMTest, ElemwiseMaxNumNaNFloat) {
   assertAllEqual(c_buffer, 1.0f);
 }
 
-TEST(LLVMTest, ElemwiseMinNumFloat) {
+void testLLVMElemwiseMinNumFloat() {
   constexpr int N = 1024;
   Buffer a(Var("A", kHandle), kFloat32, {N});
   Buffer b(Var("B", kHandle), kFloat32, {N});
@@ -435,7 +436,7 @@ TEST(LLVMTest, ElemwiseMinNumFloat) {
   assertAllEqual(c_buffer, 1.0f);
 }
 
-TEST(LLVMTest, ElemwiseMinNumNaNFloat) {
+void testLLVMElemwiseMinNumNaNFloat() {
   constexpr int N = 1024;
   Buffer a(Var("A", kHandle), kFloat32, {N});
   Buffer b(Var("B", kHandle), kFloat32, {N});
@@ -469,7 +470,7 @@ TEST(LLVMTest, ElemwiseMinNumNaNFloat) {
 }
 
 #if 1 // LLVM doesn't currently have implementations for maximum/minimum on x86
-TEST(LLVMTest, ElemwiseMaximumFloat) {
+void testLLVMElemwiseMaximumFloat() {
   constexpr int N = 1024;
   Buffer a(Var("A", kHandle), kFloat32, {N});
   Buffer b(Var("B", kHandle), kFloat32, {N});
@@ -503,7 +504,7 @@ TEST(LLVMTest, ElemwiseMaximumFloat) {
   assertAllEqual(c_buffer, 41.0f);
 }
 
-TEST(LLVMTest, ElemwiseMaximumNaNFloat) {
+void testLLVMElemwiseMaximumNaNFloat() {
   constexpr int N = 1024;
   Buffer a(Var("A", kHandle), kFloat32, {N});
   Buffer b(Var("B", kHandle), kFloat32, {N});
@@ -538,7 +539,7 @@ TEST(LLVMTest, ElemwiseMaximumNaNFloat) {
   }
 }
 
-TEST(LLVMTest, ElemwiseMinimumFloat) {
+void testLLVMElemwiseMinimumFloat() {
   constexpr int N = 1024;
   Buffer a(Var("A", kHandle), kFloat32, {N});
   Buffer b(Var("B", kHandle), kFloat32, {N});
@@ -572,7 +573,7 @@ TEST(LLVMTest, ElemwiseMinimumFloat) {
   assertAllEqual(c_buffer, 1.0f);
 }
 
-TEST(LLVMTest, ElemwiseMinimumNaNFloat) {
+void testLLVMElemwiseMinimumNaNFloat() {
   constexpr int N = 1024;
   Buffer a(Var("A", kHandle), kFloat32, {N});
   Buffer b(Var("B", kHandle), kFloat32, {N});
@@ -608,7 +609,7 @@ TEST(LLVMTest, ElemwiseMinimumNaNFloat) {
 }
 #endif
 
-TEST(LLVMTest, CompareSelectIntEQ) {
+void testLLVMCompareSelectIntEQ() {
   constexpr int N = 1024;
   Buffer a(Var("A", kHandle), kInt32, {N});
   Buffer b(Var("B", kHandle), kInt32, {N});
@@ -653,7 +654,7 @@ TEST(LLVMTest, CompareSelectIntEQ) {
   }
 }
 
-TEST(LLVMTest, CompareSelectFloatEQ) {
+void testLLVMCompareSelectFloatEQ() {
   constexpr int N = 1024;
   Buffer a(Var("A", kHandle), kFloat32, {N});
   Buffer b(Var("B", kHandle), kFloat32, {N});
@@ -691,7 +692,7 @@ TEST(LLVMTest, CompareSelectFloatEQ) {
   assertAllEqual(c_buffer, 1);
 }
 
-TEST(LLVMTest, StoreFloat) {
+void testLLVMStoreFloat() {
   Buffer result(Var("result", kHandle), kFloat32, {1});
   std::vector<float> result_buffer = {0.0f};
   auto expr = Store::make(
@@ -702,7 +703,7 @@ TEST(LLVMTest, StoreFloat) {
   EXPECT_EQ(result_buffer[0], 3.14f);
 }
 
-TEST(LLVMTest, SimpleMath01) {
+void testLLVMSimpleMath01() {
   const int N = 1024;
   Tensor tensor = Compute(
       "f", {{N, "i"}}, [](const Var& i) { return cast<float>(i * i + 1); });
@@ -722,7 +723,7 @@ TEST(LLVMTest, SimpleMath01) {
   ExpectAllNear(f_v, f_ref, 1e-5);
 }
 
-TEST(LLVMTest, ComputeMul) {
+void testLLVMComputeMul() {
   const int N = 1024;
   Buffer a(Var("a", kHandle), kFloat32, {N});
   Buffer b(Var("b", kHandle), kFloat32, {N});
@@ -744,7 +745,7 @@ TEST(LLVMTest, ComputeMul) {
   assertAllEqual(c_vec, 42.0f);
 }
 
-TEST(LLVMTest, BroadcastAdd) {
+void testLLVMBroadcastAdd() {
   const int M = 32;
   const int N = 1024;
   Buffer a(Var("a", kHandle), kFloat32, {M, N});
@@ -775,5 +776,7 @@ TEST(LLVMTest, BroadcastAdd) {
     }
   }
 }
+} // namespace jit
+} // namespace torch
 
 #endif // ENABLE_LLVM

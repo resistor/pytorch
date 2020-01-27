@@ -1,7 +1,8 @@
+
+#include "test/cpp/tensorexpr/test_base.h"
 #include <sstream>
 #include <stdexcept>
 
-#include <gtest/gtest.h>
 #include <cmath>
 
 #include "torch/csrc/jit/tensorexpr/buffer.h"
@@ -10,10 +11,12 @@
 #include "torch/csrc/jit/tensorexpr/tensor.h"
 #include "torch/csrc/jit/tensorexpr/tests/padded_buffer.h"
 
+namespace torch {
+namespace jit {
 using namespace torch::jit::compiler;
 using namespace torch::jit::compiler::schedule;
 
-TEST(CudaTest, VectorAdd01) {
+void testCudaTestVectorAdd01() {
   const int N = 1024;
   Buffer a_buf("a", kFloat32, {N});
   Buffer b_buf("b", kFloat32, {N});
@@ -38,3 +41,5 @@ TEST(CudaTest, VectorAdd01) {
   ExpectAllNear(c_v, c_ref, 1e-5);
 #endif
 }
+} // namespace jit
+} // namespace torch
