@@ -1,12 +1,12 @@
 #include "test/cpp/tensorexpr/test_base.h"
-#include "torch/csrc/jit/tensorexpr/ir.h"
+
+#include "torch/csrc/jit/tensorexpr/tests/test_utils.h"
 
 namespace torch {
 namespace jit {
-using namespace torch::jit::tensorexpr;
+using namespace torch::jit::compiler;
 
 void testTypeTest01() {
-  KernelScope kernel_scope;
   {
     Dtype dt1 = kInt32;
     EXPECT_EQ(dt1, kInt32);

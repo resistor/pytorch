@@ -5,14 +5,15 @@
 #include "torch/csrc/jit/tensorexpr/ir.h"
 #include "torch/csrc/jit/tensorexpr/ir_printer.h"
 
+#include "torch/csrc/jit/tensorexpr/tests/test_utils.h"
+
 #include <sstream>
 namespace torch {
 namespace jit {
 
-using namespace torch::jit::tensorexpr;
+using namespace torch::jit::compiler;
 
 void testIRPrinterBasicValueTest() {
-  KernelScope kernel_scope;
   Expr a = IntImm::make(2), b = IntImm::make(3);
   Expr c = Add::make(a, b);
 
@@ -22,7 +23,6 @@ void testIRPrinterBasicValueTest() {
 }
 
 void testIRPrinterBasicValueTest02() {
-  KernelScope kernel_scope;
   Expr a(2.0f);
   Expr b(3.0f);
   Expr c(4.0f);
@@ -35,7 +35,6 @@ void testIRPrinterBasicValueTest02() {
 }
 
 void testIRPrinterLetTest01() {
-  KernelScope kernel_scope;
   Var x("x", kFloat32);
   Expr value = Expr(3.f);
   Expr body = Expr(2.f) + (x * Expr(3.f) + Expr(4.f));
@@ -47,7 +46,6 @@ void testIRPrinterLetTest01() {
 }
 
 void testIRPrinterLetTest02() {
-  KernelScope kernel_scope;
   Var x("x", kFloat32);
   Var y("y", kFloat32);
   Expr value = Expr(3.f);
@@ -62,7 +60,6 @@ void testIRPrinterLetTest02() {
 }
 
 void testIRPrinterCastTest() {
-  KernelScope kernel_scope;
   Var x("x", kFloat32);
   Var y("y", kFloat32);
   Expr value = Expr(3.f);
