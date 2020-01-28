@@ -18,23 +18,28 @@
 
 using namespace torch::jit::compiler;
 
-LLVMCodeGen::LLVMCodeGen(const Stmt& stmt, const std::vector<Buffer*>& args, Dtype dtype) :
-    LLVMCodeGen(stmt.node(), args, dtype)
-{}
+LLVMCodeGen::LLVMCodeGen(
+    const Stmt& stmt,
+    const std::vector<Buffer*>& args,
+    Dtype dtype)
+    : LLVMCodeGen(stmt.node(), args, dtype) {}
 
 LLVMCodeGen::LLVMCodeGen(const Stmt& stmt)
-    : LLVMCodeGen(stmt, std::vector<Buffer*>())
-{}
+    : LLVMCodeGen(stmt, std::vector<Buffer*>()) {}
 
-LLVMCodeGen::LLVMCodeGen(const Expr& expr, const std::vector<Buffer*>& args, Dtype dtype) :
-    LLVMCodeGen(expr.node(), args, dtype)
-{}
+LLVMCodeGen::LLVMCodeGen(
+    const Expr& expr,
+    const std::vector<Buffer*>& args,
+    Dtype dtype)
+    : LLVMCodeGen(expr.node(), args, dtype) {}
 
 LLVMCodeGen::LLVMCodeGen(const Expr& expr)
-    : LLVMCodeGen(expr, std::vector<Buffer*>())
-{}
+    : LLVMCodeGen(expr, std::vector<Buffer*>()) {}
 
-LLVMCodeGen::LLVMCodeGen(const IRNode* node, const std::vector<Buffer*>& args, Dtype dtype)
+LLVMCodeGen::LLVMCodeGen(
+    const IRNode* node,
+    const std::vector<Buffer*>& args,
+    Dtype dtype)
     : CodeGen(node),
       context_(std::make_unique<llvm::LLVMContext>()),
       irb_(*context_.getContext()) {
@@ -129,30 +134,30 @@ LLVMCodeGen::LLVMCodeGen(const IRNode* node, const std::vector<Buffer*>& args, D
   irb_.CreateRet(value_);
 
 #if DEBUG_PRINT
-    llvm::errs() << *module_;
+  llvm::errs() << *module_;
 #endif
-    CHECK(!llvm::verifyFunction(*fn_, &llvm::outs()))
-        << "Function verification failed";
-    optimize(*module_);
+  CHECK(!llvm::verifyFunction(*fn_, &llvm::outs()))
+      << "Function verification failed";
+  optimize(*module_);
 
 #if DEBUG_PRINT
-    llvm::errs() << *module_;
-    llvm::SmallVector<char, 0> asmBuffer;
-    llvm::raw_svector_ostream asmStream(asmBuffer);
-    llvm::legacy::PassManager PM;
-    TM->addPassesToEmitFile(
-        PM,
-        asmStream,
-        nullptr,
-        llvm::TargetMachine::CodeGenFileType::CGFT_AssemblyFile);
-    PM.run(*module_);
-    llvm::errs() << asmStream.str();
+  llvm::errs() << *module_;
+  llvm::SmallVector<char, 0> asmBuffer;
+  llvm::raw_svector_ostream asmStream(asmBuffer);
+  llvm::legacy::PassManager PM;
+  TM->addPassesToEmitFile(
+      PM,
+      asmStream,
+      nullptr,
+      llvm::TargetMachine::CodeGenFileType::CGFT_AssemblyFile);
+  PM.run(*module_);
+  llvm::errs() << asmStream.str();
 #endif
 
-    cantFail(jit_->addModule(
-        llvm::orc::ThreadSafeModule(std::move(module_), context_)));
-    auto sym = jit_->findSymbol("wrapper");
-    kernelAddress_ = cantFail(sym.getAddress());
+  cantFail(jit_->addModule(
+      llvm::orc::ThreadSafeModule(std::move(module_), context_)));
+  auto sym = jit_->findSymbol("wrapper");
+  kernelAddress_ = cantFail(sym.getAddress());
 }
 
 void LLVMCodeGen::bind(const BufferArg& buf, const CallArg& data) {
@@ -514,7 +519,8 @@ void LLVMCodeGen::visit(const Load* v) {
     if (stride_imm && stride_imm->value() == 1) {
       auto first_idx = irb_.CreateExtractElement(idx, uint64_t{0ULL});
       auto addr = irb_.CreateGEP(base, first_idx);
-      auto vaddr = irb_.CreateBitOrPointerCast(addr, llvm::PointerType::get(loadType, 0));
+      auto vaddr = irb_.CreateBitOrPointerCast(
+          addr, llvm::PointerType::get(loadType, 0));
       value_ = irb_.CreateAlignedLoad(loadType, vaddr, 4);
       return;
     }
@@ -650,7 +656,8 @@ void LLVMCodeGen::visit(const Store* v) {
     if (stride_imm && stride_imm->value() == 1) {
       auto first_idx = irb_.CreateExtractElement(idx, uint64_t{0});
       auto addr = irb_.CreateGEP(base, first_idx);
-      auto vaddr = irb_.CreateBitOrPointerCast(addr, llvm::PointerType::get(val->getType(), 0));
+      auto vaddr = irb_.CreateBitOrPointerCast(
+          addr, llvm::PointerType::get(val->getType(), 0));
       irb_.CreateAlignedStore(val, vaddr, 4);
       return;
     }
@@ -684,15 +691,19 @@ void LLVMCodeGen::visit(const Intrinsics* v) {
   llvm::Value* call_fn = nullptr;
   switch (v->op_type()) {
     case kLog10: {
-      auto callee = module_->getOrInsertFunction("log10_float",
-        llvm::FunctionType::get(floatTy_, { floatTy_ }, false), {});
+      auto callee = module_->getOrInsertFunction(
+          "log10_float",
+          llvm::FunctionType::get(floatTy_, {floatTy_}, false),
+          {});
       call_ty = callee.getFunctionType();
       call_fn = callee.getCallee();
       llvm::cast<llvm::Function>(call_fn)->addFnAttr(llvm::Attribute::ReadNone);
       llvm::cast<llvm::Function>(call_fn)->addFnAttr(llvm::Attribute::NoFree);
       llvm::cast<llvm::Function>(call_fn)->addFnAttr(llvm::Attribute::NoUnwind);
-      llvm::cast<llvm::Function>(call_fn)->addFnAttr(llvm::Attribute::Speculatable);
-      llvm::cast<llvm::Function>(call_fn)->addFnAttr(llvm::Attribute::WillReturn);
+      llvm::cast<llvm::Function>(call_fn)->addFnAttr(
+          llvm::Attribute::Speculatable);
+      llvm::cast<llvm::Function>(call_fn)->addFnAttr(
+          llvm::Attribute::WillReturn);
     } break;
     default: {
       LOG(FATAL) << "Unimplemented: Intrinsics";
