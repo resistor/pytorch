@@ -23,7 +23,7 @@
 
 namespace torch {
 namespace jit {
-namespace compiler {
+namespace tensorexpr {
 
 class TORCH_API LLVMCodeGen : public CodeGen, public IRVisitor {
  private:
@@ -121,7 +121,7 @@ class TORCH_API LLVMCodeGen : public CodeGen, public IRVisitor {
   }
 };
 
-} // namespace compiler
+} // namespace tensorexpr
 } // namespace jit
 } // namespace torch
 

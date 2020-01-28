@@ -11,7 +11,7 @@
 
 namespace torch {
 namespace jit {
-namespace compiler {
+namespace tensorexpr {
 namespace schedule {
 
 // Schedule basics
@@ -602,6 +602,6 @@ class TORCH_API Schedule : RefHandle<ScheduleNode> {
 };
 
 } // namespace schedule
-} // namespace compiler
+} // namespace tensorexpr
 } // namespace jit
 } // namespace torch

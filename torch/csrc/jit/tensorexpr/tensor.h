@@ -9,7 +9,7 @@
 
 namespace torch {
 namespace jit {
-namespace compiler {
+namespace tensorexpr {
 namespace schedule {
 class TensorExprNode;
 class ScheduleNode;
@@ -271,6 +271,6 @@ inline Expr Tensor::call(const std::vector<T>& args) const {
   return FunctionCall::make(*this, params);
 }
 
-} // namespace compiler
+} // namespace tensorexpr
 } // namespace jit
 } // namespace torch

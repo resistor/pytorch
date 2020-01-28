@@ -10,7 +10,7 @@
 
 namespace torch {
 namespace jit {
-namespace compiler {
+namespace tensorexpr {
 
 using VarNameMap = std::unordered_map<const Variable*, std::string>;
 
@@ -231,6 +231,6 @@ class CudaCodeGen : public CodeGen {
   std::unique_ptr<CudaPrinter> printer_;
 };
 
-} // namespace compiler
+} // namespace tensorexpr
 } // namespace jit
 } // namespace torch

@@ -7,7 +7,7 @@
 
 namespace torch {
 namespace jit {
-namespace compiler {
+namespace tensorexpr {
 
 // A refcounted object.
 // Callers can call "Ref()" and "Unref" to increment and decrement its reference
@@ -164,6 +164,6 @@ class RefHandle {
   friend class RefHandle;
 };
 
-} // namespace compiler
+} // namespace tensorexpr
 } // namespace jit
 } // namespace torch

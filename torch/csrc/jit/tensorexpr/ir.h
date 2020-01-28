@@ -7,7 +7,7 @@
 
 namespace torch {
 namespace jit {
-namespace compiler {
+namespace tensorexpr {
 
 enum IRNodeType {
   kAdd,
@@ -846,6 +846,6 @@ class Free : public StmtNode<Free> {
   Var buffer_var_;
 };
 
-} // namespace compiler
+} // namespace tensorexpr
 } // namespace jit
 } // namespace torch

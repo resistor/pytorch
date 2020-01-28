@@ -13,7 +13,7 @@
 
 namespace torch {
 namespace jit {
-namespace compiler {
+namespace tensorexpr {
 namespace schedule {
 
 namespace {
@@ -728,6 +728,6 @@ LoopAxis* LoopAxisTransform::NewAxis(
 }
 
 } // namespace schedule
-} // namespace compiler
+} // namespace tensorexpr
 } // namespace jit
 } // namespace torch
