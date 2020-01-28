@@ -24,8 +24,7 @@ class CodeGen {
   CodeGen(const Expr& expr, Ts... ts)
       : ir_node_(expr.node()), buffer_args_({BufferArg(ts)...}) {}
 
-  CodeGen(const IRNode* node)
-      : ir_node_(node) {}
+  CodeGen(const IRNode* node) : ir_node_(node) {}
 
   virtual ~CodeGen() {}
 

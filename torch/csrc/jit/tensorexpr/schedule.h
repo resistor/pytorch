@@ -160,7 +160,8 @@ class TORCH_API LoopAxis : public Cloneable<LoopAxis, ScheduleObject> {
 // several output groups are generated. Each output group is responsible for
 // producing a subset within the input region. Note that each input axis can be
 // used in at most one transform.
-class TORCH_API LoopAxisTransform : public Cloneable<LoopAxisTransform, ScheduleObject> {
+class TORCH_API LoopAxisTransform
+    : public Cloneable<LoopAxisTransform, ScheduleObject> {
  public:
   LoopAxisTransform() {}
 
@@ -331,7 +332,8 @@ class TORCH_API TensorExprOp : public Cloneable<TensorExprOp, ScheduleObject> {
 // This variable type node could contain one of multiple types that follows:
 //   * A single loop axis
 //   * a tensor expr op.
-class TORCH_API TensorExprNode : public Cloneable<TensorExprNode, ScheduleObject> {
+class TORCH_API TensorExprNode
+    : public Cloneable<TensorExprNode, ScheduleObject> {
  public:
   enum NodeType {
     // These could show up in the tensor expression trees.
