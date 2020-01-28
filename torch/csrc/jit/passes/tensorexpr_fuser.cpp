@@ -45,27 +45,27 @@ value_list sortReverseTopological(
 bool isSupported(Node* node) {
   // TODO:
   switch (node->kind()) {
-  case aten::add:
-  case aten::sub:
-  case aten::mul:
-  case aten::div:
-  case aten::eq:
-  case aten::ne:
-  case aten::ge:
-  case aten::gt:
-  case aten::le:
-  case aten::lt:
-  case aten::log:
-  case aten::log10:
-  case aten::log2:
-  case aten::exp:
-  case aten::erf:
-  case aten::cos:
-  case aten::sin:
-  case aten::tan:
-    return true;
-  default:
-    return false;
+    case aten::add:
+    case aten::sub:
+    case aten::mul:
+    case aten::div:
+    case aten::eq:
+    case aten::ne:
+    case aten::ge:
+    case aten::gt:
+    case aten::le:
+    case aten::lt:
+    case aten::log:
+    case aten::log10:
+    case aten::log2:
+    case aten::exp:
+    case aten::erf:
+    case aten::cos:
+    case aten::sin:
+    case aten::tan:
+      return true;
+    default:
+      return false;
   }
 }
 
@@ -305,11 +305,13 @@ struct TensorExprKernel {
   }
 
   void promoteInputs(std::vector<Expr>& inputs) {
-    bool any_float = std::any_of(inputs.begin(), inputs.end(),
-      [](const Expr& e) { return e.dtype() == kFloat32; }
-    );
+    bool any_float =
+        std::any_of(inputs.begin(), inputs.end(), [](const Expr& e) {
+          return e.dtype() == kFloat32;
+        });
 
-    if (!any_float) return;
+    if (!any_float)
+      return;
 
     for (Expr& e : inputs) {
       if (e.dtype() == kInt32) {
@@ -335,167 +337,170 @@ struct TensorExprKernel {
     return constant(v);
   }
 
-  Tensor ComputeOneOperand(const std::string& name, Node* n,
-                           std::function<Expr(const Expr&)> inner_expr) {
+  Tensor ComputeOneOperand(
+      const std::string& name,
+      Node* n,
+      std::function<Expr(const Expr&)> inner_expr) {
     return Compute(
-      name,
-      texprDims(n->output()),
-      [this, n, inner_expr](const std::vector<Var>& axes) {
-        std::vector<Expr> inputs = {
-          tensorOrConstant(n->inputs()[0], axes)
-        };
+        name,
+        texprDims(n->output()),
+        [this, n, inner_expr](const std::vector<Var>& axes) {
+          std::vector<Expr> inputs = {tensorOrConstant(n->inputs()[0], axes)};
 
-        promoteInputs(inputs);
-        Expr compute = inner_expr(inputs[0]);
-        return demoteOutput(compute, n->output());
-      }
-    );
+          promoteInputs(inputs);
+          Expr compute = inner_expr(inputs[0]);
+          return demoteOutput(compute, n->output());
+        });
   }
 
-  Tensor ComputeTwoOperand(const std::string& name, Node* n,
-                           std::function<Expr(const Expr&, const Expr&)> inner_expr) {
+  Tensor ComputeTwoOperand(
+      const std::string& name,
+      Node* n,
+      std::function<Expr(const Expr&, const Expr&)> inner_expr) {
     return Compute(
-      name,
-      texprDims(n->output()),
-      [this, n, inner_expr](const std::vector<Var>& axes) {
-        std::vector<Expr> inputs = {
-          tensorOrConstant(n->inputs()[0], axes),
-          tensorOrConstant(n->inputs()[1], axes),
-        };
+        name,
+        texprDims(n->output()),
+        [this, n, inner_expr](const std::vector<Var>& axes) {
+          std::vector<Expr> inputs = {
+              tensorOrConstant(n->inputs()[0], axes),
+              tensorOrConstant(n->inputs()[1], axes),
+          };
 
-        promoteInputs(inputs);
-        Expr compute = inner_expr(inputs[0], inputs[1]);
-        return demoteOutput(compute, n->output());
-      }
-    );
+          promoteInputs(inputs);
+          Expr compute = inner_expr(inputs[0], inputs[1]);
+          return demoteOutput(compute, n->output());
+        });
   }
 
-  Tensor ComputeTwoOperandWithAlpha(const std::string& name, Node* n,
-                                    std::function<Expr(const Expr&, const Expr&)> inner_expr) {
+  Tensor ComputeTwoOperandWithAlpha(
+      const std::string& name,
+      Node* n,
+      std::function<Expr(const Expr&, const Expr&)> inner_expr) {
     return Compute(
-      name,
-      texprDims(n->output()),
-      [this, n, inner_expr](const std::vector<Var>& axes) {
-        std::vector<Expr> inputs = {
-          tensorOrConstant(n->inputs()[0], axes),
-          tensorOrConstant(n->inputs()[1], axes),
-          tensorOrConstant(n->inputs()[2], axes),
-        };
+        name,
+        texprDims(n->output()),
+        [this, n, inner_expr](const std::vector<Var>& axes) {
+          std::vector<Expr> inputs = {
+              tensorOrConstant(n->inputs()[0], axes),
+              tensorOrConstant(n->inputs()[1], axes),
+              tensorOrConstant(n->inputs()[2], axes),
+          };
 
-        promoteInputs(inputs);
-        Expr compute = inner_expr(inputs[0], inputs[2] * inputs[1]);
-        return demoteOutput(compute, n->output());
-      }
-    );
+          promoteInputs(inputs);
+          Expr compute = inner_expr(inputs[0], inputs[2] * inputs[1]);
+          return demoteOutput(compute, n->output());
+        });
   }
 
   Tensor ComputeNode(Node* n) {
     switch (n->kind()) {
       case aten::add: {
-        return ComputeTwoOperandWithAlpha("aten_add", n,
-          [](const Expr& lhs, const Expr& rhs) { return lhs + rhs; }
-        );
+        return ComputeTwoOperandWithAlpha(
+            "aten_add", n, [](const Expr& lhs, const Expr& rhs) {
+              return lhs + rhs;
+            });
       } break;
 
       case aten::sub: {
-        return ComputeTwoOperandWithAlpha("aten_sub", n,
-          [](const Expr& lhs, const Expr& rhs) { return lhs - rhs; }
-        );
+        return ComputeTwoOperandWithAlpha(
+            "aten_sub", n, [](const Expr& lhs, const Expr& rhs) {
+              return lhs - rhs;
+            });
       } break;
 
       case aten::mul: {
-        return ComputeTwoOperand("aten_mul", n,
-          [](const Expr& lhs, const Expr& rhs) { return lhs * rhs; }
-        );
+        return ComputeTwoOperand(
+            "aten_mul", n, [](const Expr& lhs, const Expr& rhs) {
+              return lhs * rhs;
+            });
       } break;
 
       case aten::div: {
-        return ComputeTwoOperand("aten_div", n,
-          [](const Expr& lhs, const Expr& rhs) { return lhs / rhs; }
-        );
+        return ComputeTwoOperand(
+            "aten_div", n, [](const Expr& lhs, const Expr& rhs) {
+              return lhs / rhs;
+            });
       } break;
 
       case aten::eq: {
-        return ComputeTwoOperand("aten_eq", n,
-          [](const Expr& lhs, const Expr& rhs) { return lhs == rhs; }
-        );
+        return ComputeTwoOperand(
+            "aten_eq", n, [](const Expr& lhs, const Expr& rhs) {
+              return lhs == rhs;
+            });
       } break;
 
       case aten::ne: {
-        return ComputeTwoOperand("aten_ne", n,
-          [](const Expr& lhs, const Expr& rhs) { return lhs != rhs; }
-        );
+        return ComputeTwoOperand(
+            "aten_ne", n, [](const Expr& lhs, const Expr& rhs) {
+              return lhs != rhs;
+            });
       } break;
       case aten::ge: {
-        return ComputeTwoOperand("aten_ge", n,
-          [](const Expr& lhs, const Expr& rhs) { return lhs >= rhs; }
-        );
+        return ComputeTwoOperand(
+            "aten_ge", n, [](const Expr& lhs, const Expr& rhs) {
+              return lhs >= rhs;
+            });
       } break;
 
       case aten::gt: {
-        return ComputeTwoOperand("aten_gt", n,
-          [](const Expr& lhs, const Expr& rhs) { return lhs > rhs; }
-        );
+        return ComputeTwoOperand(
+            "aten_gt", n, [](const Expr& lhs, const Expr& rhs) {
+              return lhs > rhs;
+            });
       } break;
 
       case aten::le: {
-        return ComputeTwoOperand("aten_le", n,
-          [](const Expr& lhs, const Expr& rhs) { return lhs <= rhs; }
-        );
+        return ComputeTwoOperand(
+            "aten_le", n, [](const Expr& lhs, const Expr& rhs) {
+              return lhs <= rhs;
+            });
       } break;
 
       case aten::lt: {
-        return ComputeTwoOperand("aten_lt", n,
-          [](const Expr& lhs, const Expr& rhs) { return lhs < rhs; }
-        );
+        return ComputeTwoOperand(
+            "aten_lt", n, [](const Expr& lhs, const Expr& rhs) {
+              return lhs < rhs;
+            });
       } break;
 
       case aten::log: {
-        return ComputeOneOperand("aten_log", n,
-          [](const Expr& a) { return log(a); }
-        );
+        return ComputeOneOperand(
+            "aten_log", n, [](const Expr& a) { return log(a); });
       } break;
 
       case aten::log10: {
-        return ComputeOneOperand("aten_log10", n,
-          [](const Expr& a) { return log10(a); }
-        );
+        return ComputeOneOperand(
+            "aten_log10", n, [](const Expr& a) { return log10(a); });
       } break;
 
       case aten::log2: {
-        return ComputeOneOperand("aten_log2", n,
-          [](const Expr& a) { return log2(a); }
-        );
+        return ComputeOneOperand(
+            "aten_log2", n, [](const Expr& a) { return log2(a); });
       } break;
 
       case aten::exp: {
-        return ComputeOneOperand("aten_exp", n,
-          [](const Expr& a) { return exp(a); }
-        );
+        return ComputeOneOperand(
+            "aten_exp", n, [](const Expr& a) { return exp(a); });
       } break;
 
       case aten::erf: {
-        return ComputeOneOperand("aten_erf", n,
-          [](const Expr& a) { return erf(a); }
-        );
+        return ComputeOneOperand(
+            "aten_erf", n, [](const Expr& a) { return erf(a); });
       } break;
 
       case aten::cos: {
-        return ComputeOneOperand("aten_cos", n,
-          [](const Expr& a) { return cos(a); }
-        );
+        return ComputeOneOperand(
+            "aten_cos", n, [](const Expr& a) { return cos(a); });
       } break;
 
       case aten::sin: {
-        return ComputeOneOperand("aten_sin", n,
-          [](const Expr& a) { return sin(a); }
-        );
+        return ComputeOneOperand(
+            "aten_sin", n, [](const Expr& a) { return sin(a); });
       } break;
 
       case aten::tan: {
-        return ComputeOneOperand("aten_tan", n,
-          [](const Expr& a) { return tan(a); }
-        );
+        return ComputeOneOperand(
+            "aten_tan", n, [](const Expr& a) { return tan(a); });
       } break;
 
       default: {
@@ -527,10 +532,7 @@ struct TensorExprKernel {
         continue;
       }
 
-      tensors.emplace(
-        n->output()->unique(),
-        ComputeNode(n)
-      );
+      tensors.emplace(n->output()->unique(), ComputeNode(n));
     }
 
     CHECK(subgraph->outputs().size() == 1ULL)
@@ -573,7 +575,7 @@ struct TensorExprKernel {
       codegen->bind(buffer_args[i], inputs[i].toTensor().data_ptr());
     }
     at::Tensor output =
-      at::empty(bufferSizes(*tensor_output), tensorType(*tensor_output));
+        at::empty(bufferSizes(*tensor_output), tensorType(*tensor_output));
     codegen->bind(*tensor_output, output.data_ptr());
 
     // Call the kernel.

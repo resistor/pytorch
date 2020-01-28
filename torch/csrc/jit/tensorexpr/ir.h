@@ -746,7 +746,8 @@ class Intrinsics : public CallNode<Intrinsics> {
       case kFmod:
         return "fmod";
       default:
-        throw std::runtime_error("invalid op_type: " + std::to_string(op_type()));
+        throw std::runtime_error(
+            "invalid op_type: " + std::to_string(op_type()));
     }
   }
 
@@ -781,7 +782,10 @@ class Intrinsics : public CallNode<Intrinsics> {
   }
 
   TORCH_API static Dtype IntrinsicsDtype(IntrinsicsOp op_type, Dtype dt1);
-  TORCH_API static Dtype IntrinsicsDtype(IntrinsicsOp op_type, Dtype dt1, Dtype dt2);
+  TORCH_API static Dtype IntrinsicsDtype(
+      IntrinsicsOp op_type,
+      Dtype dt1,
+      Dtype dt2);
   TORCH_API static Dtype IntrinsicsDtype(
       IntrinsicsOp op_type,
       const std::vector<Expr>& params);
