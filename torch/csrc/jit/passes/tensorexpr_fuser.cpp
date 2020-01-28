@@ -14,7 +14,7 @@
 #include <torch/csrc/jit/tensorexpr/tensor.h>
 
 using namespace torch::jit;
-using namespace torch::jit::compiler;
+using namespace torch::jit::tensorexpr;
 
 namespace {
 
@@ -540,7 +540,7 @@ struct TensorExprKernel {
     auto const& output = subgraph->outputs()[0];
     CHECK(tensors.count(output->unique())) << "Output must be a tensor";
     tensor_output = &tensors.at(output->unique());
-    torch::jit::compiler::schedule::Schedule sch({*tensor_output});
+    torch::jit::tensorexpr::schedule::Schedule sch({*tensor_output});
     for (auto& p : tensors) {
       auto& t = p.second;
       if (&t != tensor_output) {

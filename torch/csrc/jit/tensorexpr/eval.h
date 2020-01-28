@@ -15,7 +15,7 @@
 
 namespace torch {
 namespace jit {
-namespace compiler {
+namespace tensorexpr {
 
 class Value {
  public:
@@ -606,6 +606,6 @@ inline Stmt Substitute(Stmt* stmt, const VarMapping& var_mapping) {
   return stmt->accept_mutator(&var_sub);
 }
 
-} // namespace compiler
+} // namespace tensorexpr
 } // namespace jit
 } // namespace torch

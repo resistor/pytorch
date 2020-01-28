@@ -6,7 +6,7 @@
 
 namespace torch {
 namespace jit {
-namespace compiler {
+namespace tensorexpr {
 
 template <typename T>
 class PaddedBuffer;
@@ -99,6 +99,6 @@ class CodeGen::CallArg {
   void* ptr_ = nullptr;
 };
 
-} // namespace compiler
+} // namespace tensorexpr
 } // namespace jit
 } // namespace torch

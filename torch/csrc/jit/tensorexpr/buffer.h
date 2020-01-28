@@ -4,7 +4,7 @@
 
 namespace torch {
 namespace jit {
-namespace compiler {
+namespace tensorexpr {
 
 class Buffer {
  public:
@@ -101,6 +101,6 @@ inline Expr Buffer::LoadValue(const Expr& index) const {
   return Load::make(*this, index, Expr(1));
 }
 
-} // namespace compiler
+} // namespace tensorexpr
 } // namespace jit
 } // namespace torch
