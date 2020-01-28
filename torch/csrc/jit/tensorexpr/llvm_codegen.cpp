@@ -16,7 +16,7 @@
 #include "torch/csrc/jit/tensorexpr/ir.h"
 #include "torch/csrc/jit/tensorexpr/types.h"
 
-using namespace torch::jit::compiler;
+using namespace torch::jit::tensorexpr;
 
 LLVMCodeGen::LLVMCodeGen(
     const Stmt& stmt,

@@ -3,7 +3,7 @@
 
 namespace torch {
 namespace jit {
-namespace compiler {
+namespace tensorexpr {
 
 using schedule::TensorExprNode;
 // using schedule::ScheduleNode;
@@ -54,6 +54,6 @@ void TensorOperationNode::check_expr_node() {
   }
 }
 
-} // namespace compiler
+} // namespace tensorexpr
 } // namespace jit
 } // namespace torch
