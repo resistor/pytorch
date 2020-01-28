@@ -1,7 +1,7 @@
 #pragma once
 
-#include <vector>
 #include <torch/csrc/WindowsTorchApiMacro.h>
+#include <vector>
 
 #include "torch/csrc/jit/tensorexpr/expr.h"
 #include "torch/csrc/jit/tensorexpr/function.h"
