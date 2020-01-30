@@ -55,14 +55,29 @@ bool isSupported(Node* node) {
     case aten::gt:
     case aten::le:
     case aten::lt:
-    case aten::log:
     case aten::log10:
+#ifndef ENABLE_LLVM
+    case aten::log:
     case aten::log2:
     case aten::exp:
     case aten::erf:
     case aten::cos:
     case aten::sin:
     case aten::tan:
+    case aten::acos:
+    case aten::asin:
+    case aten::atan:
+    case aten::cosh:
+    case aten::sinh:
+    case aten::tanh:
+    case aten::abs:
+    case aten::sqrt:
+    case aten::rsqrt:
+    case aten::floor:
+    case aten::ceil:
+    case aten::round:
+    case aten::trunc:
+#endif	
       return true;
     default:
       return false;
@@ -503,6 +518,85 @@ struct TensorExprKernel {
             "aten_tan", n, [](const Expr& a) { return tan(a); });
       } break;
 
+      case aten::pow: {
+        return ComputeTwoOperand(
+            "aten_pow", n, [](const Expr& lhs, const Expr& rhs) {
+              return pow(lhs, rhs);
+            });
+      } break;
+
+      case aten::fmod: {
+        return ComputeTwoOperand(
+            "aten_fmod", n, [](const Expr& lhs, const Expr& rhs) {
+              return fmod(lhs, rhs);
+            });
+      } break;
+
+      case aten::acos: {
+        return ComputeOneOperand(
+            "aten_acos", n, [](const Expr& a) { return acos(a); });
+      } break;
+
+      case aten::asin: {
+        return ComputeOneOperand(
+            "aten_asin", n, [](const Expr& a) { return asin(a); });
+      } break;
+
+      case aten::cosh: {
+        return ComputeOneOperand(
+            "aten_cosh", n, [](const Expr& a) { return cosh(a); });
+      } break;
+
+      case aten::sinh: {
+        return ComputeOneOperand(
+            "aten_sinh", n, [](const Expr& a) { return sinh(a); });
+      } break;
+
+      case aten::atan: {
+        return ComputeOneOperand(
+            "aten_atan", n, [](const Expr& a) { return atan(a); });
+      } break;
+
+      case aten::tanh: {
+        return ComputeOneOperand(
+            "aten_tanh", n, [](const Expr& a) { return tanh(a); });
+      } break;
+
+      case aten::sqrt: {
+        return ComputeOneOperand(
+            "aten_sqrt", n, [](const Expr& a) { return sqrt(a); });
+      } break;
+
+      case aten::rsqrt: {
+        return ComputeOneOperand(
+            "aten_rsqrt", n, [](const Expr& a) { return rsqrt(a); });
+      } break;
+
+      case aten::abs: {
+        return ComputeOneOperand(
+            "aten_abs", n, [](const Expr& a) { return fabs(a); });
+      } break;
+
+      case aten::ceil: {
+        return ComputeOneOperand(
+            "aten_ceil", n, [](const Expr& a) { return ceil(a); });
+      } break;
+
+      case aten::floor: {
+        return ComputeOneOperand(
+            "aten_floor", n, [](const Expr& a) { return floor(a); });
+      } break;
+
+      case aten::round: {
+        return ComputeOneOperand(
+            "aten_round", n, [](const Expr& a) { return round(a); });
+      } break;
+
+      case aten::trunc: {
+        return ComputeOneOperand(
+            "aten_trunc", n, [](const Expr& a) { return trunc(a); });
+      } break;
+
       default: {
         LOG(FATAL) << "Unhandled node kind";
       }
@@ -525,13 +619,11 @@ struct TensorExprKernel {
               }));
       buffer_args.push_back(std::move(in_buffer));
     }
-
     // Bind nodes to tensor compute expressions.
     for (auto const& n : subgraph->nodes()) {
       if (n->kind() == prim::Constant) {
         continue;
       }
-
       tensors.emplace(n->output()->unique(), ComputeNode(n));
     }
 
@@ -548,7 +640,6 @@ struct TensorExprKernel {
       }
     }
     Stmt stmt = sch.Lower();
-
 #ifdef ENABLE_LLVM
     // Set up formal params (inputs, then outputs) for kernel.
     std::vector<Buffer*> params;
