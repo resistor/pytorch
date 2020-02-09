@@ -196,10 +196,7 @@ std::pair<graph_node_list::iterator, bool> scanNode(
 }
 
 void fuseTensorExprs(std::shared_ptr<Graph>& graph) {
-#if TX_DEBUG
-  std::cout << "Entering TExprFuser\n";
-  std::cout << *graph;
-#endif
+  GRAPH_DUMP("Before TExprFuser: ", graph);
 
   AliasDb aliasDb(graph);
   auto block = graph->block();
@@ -241,10 +238,7 @@ void fuseTensorExprs(std::shared_ptr<Graph>& graph) {
   EliminateCommonSubexpression(graph);
   EliminateDeadCode(graph);
 
-#if TX_DEBUG
-  std::cout << "Finishing TExprFuser\n";
-  std::cout << *graph;
-#endif
+  GRAPH_DUMP("After TExprFuser: ", graph);
 }
 
 Operation createTensorExprOp(const Node* node) {
