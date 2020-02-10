@@ -234,6 +234,7 @@ private:
     case aten::ceil:
     case aten::trunc:
     case aten::sqrt:
+    case aten::rsqrt:
     case aten::remainder:
     case aten::mm:
     case aten::min:
@@ -265,12 +266,9 @@ private:
     case aten::log2:
     case aten::log10:
     case aten::frac:
-    case aten::lerp:
     case aten::lgamma:
     case aten::reciprocal:
-    case aten::addcmul:
-    case aten::where:
-     return checkInputs(n, no_exceptions);
+      return checkInputs(n, no_exceptions);
     case aten::slice:
       return !n->input(0)->type()->expect<TensorType>()->isSummarized() &&
              // check that the dimension argument is constant
