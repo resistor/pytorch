@@ -1,5 +1,6 @@
 #pragma once
 #include <torch/csrc/WindowsTorchApiMacro.h>
+#include <vector>
 
 namespace torch {
 namespace jit {
@@ -71,6 +72,10 @@ class TORCH_API IRMutator {
   virtual Stmt mutate(const Allocate* v);
   virtual Stmt mutate(const Free* v);
   virtual Stmt mutate(const Cond* v);
+
+  protected:
+  Expr DefaultMutator(const BaseCallNode* v, std::vector<Expr>& params);
+
 };
 
 } // namespace tensorexpr

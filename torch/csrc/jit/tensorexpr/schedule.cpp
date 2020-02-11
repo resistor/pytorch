@@ -392,6 +392,203 @@ ScheduleObject* ScheduleNode::CloneScheduleObject(ScheduleObject* object) {
   return new_object;
 }
 
+class Vectorizer : public IRMutator {
+  public:
+  Vectorizer(const Var& v, int lanes) : var_(v), lanes_(lanes) {}
+
+  Expr mutate(const Add* v) override {
+    std::vector<Expr> inputs = { v->lhs(), v->rhs() };
+    return try_vectorize(Expr(v), inputs,
+      [&](){ return inputs[0] + inputs[1]; });
+  }
+
+  Expr mutate(const Sub* v) override {
+    std::vector<Expr> inputs = { v->lhs(), v->rhs() };
+    return try_vectorize(Expr(v), inputs,
+      [&](){ return inputs[0] - inputs[1]; });
+  }
+
+  Expr mutate(const Mul* v) override {
+    std::vector<Expr> inputs = { v->lhs(), v->rhs() };
+    return try_vectorize(Expr(v), inputs,
+      [&](){ return inputs[0] * inputs[1]; });
+  }
+
+  Expr mutate(const Div* v) override {
+    std::vector<Expr> inputs = { v->lhs(), v->rhs() };
+    return try_vectorize(Expr(v), inputs,
+      [&](){ return inputs[0] / inputs[1]; });
+  }
+
+  Expr mutate(const Max* v) override {
+    std::vector<Expr> inputs = { v->lhs(), v->rhs() };
+    return try_vectorize(Expr(v), inputs,
+      [&](){ return Max::make(inputs[0], inputs[1], v->propagate_nans()); });
+  }
+
+  Expr mutate(const Min* v) override {
+    std::vector<Expr> inputs = { v->lhs(), v->rhs() };
+    return try_vectorize(Expr(v), inputs,
+      [&](){ return Min::make(inputs[0], inputs[1], v->propagate_nans()); });
+  }
+
+  Expr mutate(const CompareSelect* v) {
+    std::vector<Expr> inputs = { v->lhs(), v->rhs() };
+    return try_vectorize(Expr(v), inputs,
+      [&](){ return CompareSelect::make(inputs[0], inputs[1], v->compare_select_op()); });
+  }
+
+  Expr mutate(const Cast* v) {
+    std::vector<Expr> inputs = { v->src_value() };
+    return try_vectorize(Expr(v), inputs,
+      [&](){ return Cast::make(Dtype(v->dtype().scalar_type(), lanes_), inputs[0]); });
+  }
+
+  Expr mutate(const Variable* v) override {
+    if (v == var_.AsNode<Variable>()) {
+      Expr ret = Expr(v) * lanes_;
+      vectorized.insert(ret.AsNode<BaseExprNode>());
+      ret = Ramp::make(ret, 1, lanes_);
+      vectorized.insert(ret.AsNode<BaseExprNode>());
+      return ret;
+    }
+
+    return Expr(v);
+  }
+
+  Expr mutate(const Let* v) {
+    Expr var = v->var();
+    Expr value = v->value();
+    Expr body = v->body();
+
+    std::vector<Expr> inputs = { body };
+    return try_vectorize(Expr(v), inputs,
+      [&]() { return Let::make(var, value, inputs[0]); });
+  }
+
+  Expr mutate(const Ramp* v) {
+    // Don't vectorize already vectorized ops.
+    return Expr(v);
+  }
+
+  Expr mutate(const Load* v) {
+    Dtype dtype(v->dtype().scalar_type(), lanes_);
+    Var base_handle = v->base_handle();
+    std::vector<Expr> inputs = { v->index(), v->mask() };
+    return try_vectorize(Expr(v), inputs,
+      [&]() { return Load::make(dtype, base_handle, inputs[0], inputs[1]); });
+  }
+
+  Expr mutate(const Broadcast* v) {
+    // Don't vectorize already vectorized ops.
+    return Expr(v);
+  }
+
+  Expr mutate(const IfThenElse* v) {
+    Expr condition = v->condition();
+    condition.accept_mutator(this);
+
+    // Don't vectorize at all if the condition is not a multiple of lanes_
+    bool should_vectorize = false;
+    if (vectorized.count(condition.AsNode<BaseExprNode>())) {
+      auto compare = condition.AsNode<CompareSelect>();
+      if (compare) {
+        auto int_imm = compare->lhs().AsNode<IntImm>();
+        if (!int_imm) {
+          int_imm = compare->rhs().AsNode<IntImm>();
+        }
+
+        if (int_imm && (int_imm->value() % lanes_ == 0)) {
+          should_vectorize = true;   
+        }
+      }
+    } else {
+      should_vectorize = true;
+    }
+    
+    if (!should_vectorize) {
+      return Expr(v);
+    }
+
+    std::vector<Expr> inputs = { v->true_value(), v->false_value() };
+    return try_vectorize(Expr(v), inputs,
+      [&]() { return IfThenElse::make(condition, inputs[0], inputs[1]); });
+  }
+
+  Expr mutate(const BaseCallNode* v) {
+    std::vector<Expr> inputs = v->params();
+    return try_vectorize(Expr(v), inputs,
+      [&]() { return DefaultMutator(v, inputs); });
+  }
+
+  Stmt mutate(const Store* v) {
+    Var base_handle = v->base_handle();
+    Expr index = v->index();
+    Expr value = v->value();
+    Expr mask = v->mask();
+    std::vector<Expr> inputs = { v->index(), v->value(), v->mask() };
+    return try_vectorize(Stmt(v), inputs,
+      [&]() { return Store::make(base_handle, inputs[0], inputs[1], inputs[2]); });
+  }
+
+  private:
+  template <typename T1, typename T2>
+  T1 try_vectorize(T1 e, std::vector<Expr>& inputs, T2&& vec_ctor) {
+    bool vectorize = vectorize_inputs(inputs);
+    if (vectorize) {
+      T1 ret = vec_ctor();
+      if (std::is_same<T1, Expr>::value) {
+        vectorized.insert(ret.template AsNode<BaseExprNode>());
+      }
+      return ret;
+    }
+
+    return e;
+  }
+
+  bool vectorize_inputs(std::vector<Expr>& inputs) {
+    bool any_vectorized = false;
+    bool all_vectorized = true;
+    std::vector<Expr> new_inputs;
+
+    // Attempt to vectorize each input.
+    for (Expr& in : inputs) {
+      in = in.accept_mutator(this);
+      if (vectorized.count(in.AsNode<BaseExprNode>())) {
+        any_vectorized = true;
+      } else {
+        all_vectorized = false;
+      }
+    }
+
+    // If none of them vectorized, then don't vectorize this.
+    if (!any_vectorized) {
+      return false;
+    }
+
+    // If all of them vectorized, then trivially vectorize this.
+    if (all_vectorized) {
+      return true;
+    }
+
+    // In the mixed case, insert broadcasts for any inputs that
+    // weren't vectorized.
+    for (Expr& in : inputs) {
+      if (!vectorized.count(in.AsNode<BaseExprNode>())) {
+        in = Broadcast::make(in, lanes_);
+      }
+    }
+
+    // And then vectorize this node.
+    return true;
+  }
+
+  const Var& var_;
+  int lanes_;
+
+  std::unordered_set<const BaseExprNode*> vectorized;
+};
+
 class Flattener : public IRMutator {
  private:
   Expr mutate(const FunctionCall* v) override {

@@ -1,7 +1,6 @@
 #include "torch/csrc/jit/tensorexpr/ir_mutator.h"
 
 #include "torch/csrc/jit/tensorexpr/eval.h"
-#include "torch/csrc/jit/tensorexpr/ir.h"
 
 namespace torch {
 namespace jit {
@@ -292,6 +291,10 @@ Stmt IRMutator::mutate(const Cond* v) {
     return Stmt(v);
   }
   return Cond::make(cond_new, true_new, false_new);
+}
+
+Expr IRMutator::DefaultMutator(const BaseCallNode* v, std::vector<Expr>& params) {
+  v->DefaultMutator(params);
 }
 
 } // namespace tensorexpr
