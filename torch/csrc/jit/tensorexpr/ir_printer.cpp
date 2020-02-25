@@ -47,6 +47,22 @@ void IRPrinter::visit(const Div* v) {
   visitBinaryOp(v, "/", this);
 }
 
+void IRPrinter::visit(const And* v) {
+  visitBinaryOp(v, "&", this);
+}
+
+void IRPrinter::visit(const Xor* v) {
+  visitBinaryOp(v, "^", this);
+}
+
+void IRPrinter::visit(const Lshift* v) {
+  visitBinaryOp(v, "<<", this);
+}
+
+void IRPrinter::visit(const Rshift* v) {
+  visitBinaryOp(v, ">>", this);
+}
+
 void IRPrinter::visit(const Mod* v) {
   if (v->dtype() == kInt32) {
     visitBinaryOp(v, "%", this);
