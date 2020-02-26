@@ -1074,6 +1074,7 @@ void TensorExprKernel::bindInput(const torch::jit::Value* input) {
           inputTensorDims.push_back({int32_t{size}, "i" + std::to_string(i)});
         }
       }
+#ifdef DYNAMIC_SHAPES
       tensors_.emplace(
           input->unique(),
           Compute("input", inputTensorDims, [&](const std::vector<VarHandle>& axes) {
@@ -1085,6 +1086,26 @@ void TensorExprKernel::bindInput(const torch::jit::Value* input) {
                 tt->contiguity(),
                 sizeVars);
           }));
+#else
+      auto const& strides = tt->strides();
+      tensors_.emplace(
+          input->unique(),
+          Compute(
+              "input",
+              inputTensorDims,
+              [&](const std::vector<VarHandle>& axes) {
+                std::vector<ExprHandle> idxs;
+                idxs.push_back(axes[0] * (int32_t)*strides[0]);
+                for (int i = 1; i < axes.size(); i++) {
+                  idxs.push_back(idxs[i - 1] + axes[i] * (int32_t)*strides[i]);
+                }
+                return in_buffer(idxs.back());
+              }));
+      kernelArgs_.emplace_back(
+          in_buffer,
+          std::vector<ShapeArg>(),
+          std::vector<ShapeArg>());
+#endif
       break;
     }
     case TypeKind::FloatType: {
