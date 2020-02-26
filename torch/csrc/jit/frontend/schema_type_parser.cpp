@@ -162,7 +162,6 @@ TypePtr SchemaTypeParser::parseRefinedTensor() {
         at::DeviceType::CPU,
         c10::VaryingShape(num_dims),
         c10::VaryingShape(num_dims),
-        c10::VaryingShape(num_dims),
         c10::nullopt);
   } else {
     std::vector<int64_t> dims;
