@@ -61,7 +61,7 @@ void testTypePropagation() {
     ExprHandle body = ExprHandle((short)2.f) +
         (x * ExprHandle((short)3) + ExprHandle((short)4) * y);
     ExprHandle e1 = Let::make(x, ExprHandle((short)3), body);
-    ExprHandle e2 = Let::make(y, ExprHandle((long)6), e1);
+    ExprHandle e2 = Let::make(y, ExprHandle(LongImm::make(6)), e1);
     EXPECT_EQ(e2.dtype(), kLong);
   }
   // Float to bigger float:
@@ -93,7 +93,7 @@ void testTypePropagation() {
     ExprHandle body = ExprHandle((at::Half)2) +
         (x * ExprHandle((at::Half)3) + ExprHandle((at::Half)4) * y);
     ExprHandle e1 = Let::make(x, ExprHandle((at::Half)3), body);
-    ExprHandle e2 = Let::make(y, ExprHandle(6l), e1);
+    ExprHandle e2 = Let::make(y, ExprHandle(LongImm::make(6)), e1);
     EXPECT_EQ(e2.dtype(), kHalf);
   }
   // Bigger float, smaller Int:
