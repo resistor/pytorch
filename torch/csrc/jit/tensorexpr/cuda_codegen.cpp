@@ -551,6 +551,13 @@ void CudaCodeGen::call(const std::vector<CallArg>& args) {
     gpu_thread_extents_v[i] = eval.value<int>(args);
   }
 
+  // Skip launching the kernel if there are no elements to process.
+  for (int extent : gpu_block_extents_v) {
+    if (extent == 0) {
+      return;
+    }
+  }
+
   // Bind the buffer addresses into arguments
   auto const& buffer_args = this->buffer_args();
   int ptr_count = buffer_args.size();
