@@ -169,6 +169,7 @@ class TestFuser(JitTestCase):
         y = torch.randn(1, 4, dtype=torch.float, device='cuda')
 
         scripted = self.checkScript(f, (x, y))
+        self.assertEqual(scripted(x, y).shape, (3, 4))
         self.assertAllFused(scripted.graph_for(x, y))
 
     @unittest.skipIf(not RUN_CUDA, "No CUDA")
