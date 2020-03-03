@@ -9,23 +9,13 @@
 #include <torch/csrc/jit/passes/utils/subgraph_utils.h>
 #include <torch/csrc/jit/tensorexpr/kernel.h>
 
-using namespace torch::jit;
-using namespace torch::jit::tensorexpr;
-
 namespace torch {
 namespace jit {
-namespace tensorexpr {
 
 static bool texpr_fuser_enabled = true;
 TORCH_API void SetTexprFuserEnabled(bool val) {
   texpr_fuser_enabled = val;
 }
-
-} // namespace tensorexpr
-} // namespace jit
-} // namespace torch
-
-namespace {
 
 const Symbol& getTensorExprSymbol() {
   static Symbol s = Symbol::fromQualString("tensorexpr::Group");
@@ -323,7 +313,8 @@ void fuseTensorExprs(std::shared_ptr<Graph>& graph) {
 }
 
 Operation createTensorExprOp(const Node* node) {
-  auto kernel = std::make_shared<TensorExprKernel>(*node->g(attr::Subgraph));
+  auto kernel =
+      std::make_shared<tensorexpr::TensorExprKernel>(*node->g(attr::Subgraph));
   return [kernel](Stack& stack) {
     RECORD_FUNCTION("TensorExpr", std::vector<c10::IValue>());
     kernel->run(stack);
@@ -344,6 +335,13 @@ RegisterOperators TensorExprOps({
         getAliasAnalysisOption(AliasAnalysisKind::PURE_FUNCTION)),
 });
 
-RegisterPass pass(fuseTensorExprs);
+void registerTensorExprFuser() {
+  static bool already_registered = false;
+  if (!already_registered) {
+    RegisterPass pass(fuseTensorExprs);
+    already_registered = true;
+  }
+}
 
-} // namespace
+} // namespace jit
+} // namespace torch
