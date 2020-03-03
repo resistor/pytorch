@@ -426,7 +426,7 @@ if (NOT INTERN_BUILD_MOBILE OR NOT BUILD_CAFFE2_MOBILE)
     ${TORCH_SRC_DIR}/csrc/jit/passes/specialize_autogradzero.cpp
     ${TORCH_SRC_DIR}/csrc/jit/passes/subgraph_rewrite.cpp
     ${TORCH_SRC_DIR}/csrc/jit/passes/tensorexpr_fuser.cpp
-    ${TORCH_SRC_DIR}/csrc/jit/passes/python_print.cpp
+    ${TORCH_SRC_DIR}/csrc/jit/serialization/python_print.cpp
     ${TORCH_SRC_DIR}/csrc/jit/passes/utils/subgraph_utils.cpp
     ${TORCH_SRC_DIR}/csrc/jit/passes/utils/check_alias_annotation.cpp
     ${TORCH_SRC_DIR}/csrc/jit/passes/utils/memory_dag.cpp
@@ -463,13 +463,13 @@ if (NOT INTERN_BUILD_MOBILE OR NOT BUILD_CAFFE2_MOBILE)
     ${TORCH_SRC_DIR}/csrc/jit/testing/hooks_for_testing.cpp
     ${TORCH_SRC_DIR}/csrc/utils/tensor_flatten.cpp
     ${TORCH_SRC_DIR}/csrc/utils/variadic.cpp
-    ${TORCH_SRC_DIR}/csrc/jit/fuser/kernel_cache.cpp
-    ${TORCH_SRC_DIR}/csrc/jit/fuser/compiler.cpp
-    ${TORCH_SRC_DIR}/csrc/jit/fuser/executor.cpp
-    ${TORCH_SRC_DIR}/csrc/jit/fuser/codegen.cpp
-    ${TORCH_SRC_DIR}/csrc/jit/fuser/fallback.cpp
-    ${TORCH_SRC_DIR}/csrc/jit/function.cpp
-    ${TORCH_SRC_DIR}/csrc/jit/vararg_functions.cpp
+    ${TORCH_SRC_DIR}/csrc/jit/codegen/fuser/kernel_cache.cpp
+    ${TORCH_SRC_DIR}/csrc/jit/codegen/fuser/compiler.cpp
+    ${TORCH_SRC_DIR}/csrc/jit/codegen/fuser/executor.cpp
+    ${TORCH_SRC_DIR}/csrc/jit/codegen/fuser/codegen.cpp
+    ${TORCH_SRC_DIR}/csrc/jit/codegen/fuser/fallback.cpp
+    ${TORCH_SRC_DIR}/csrc/jit/api/function.cpp
+    ${TORCH_SRC_DIR}/csrc/jit/runtime/vararg_functions.cpp
 
     ${TORCH_SRC_DIR}/csrc/jit/tensorexpr/mem_arena.cpp
     ${TORCH_SRC_DIR}/csrc/jit/tensorexpr/codegen.cpp
@@ -530,8 +530,8 @@ if (NOT INTERN_BUILD_MOBILE OR NOT BUILD_CAFFE2_MOBILE)
       ${TORCH_SRC_DIR}/csrc/jit/serialization/export_module.cpp
       ${TORCH_SRC_DIR}/csrc/jit/serialization/import_legacy.cpp
       ${TORCH_SRC_DIR}/csrc/jit/netdef_converter.cpp
-      ${TORCH_SRC_DIR}/csrc/jit/fuser/cpu/fused_kernel.cpp
-      ${TORCH_SRC_DIR}/csrc/jit/script/module_save.cpp
+      ${TORCH_SRC_DIR}/csrc/jit/codegen/fuser/cpu/fused_kernel.cpp
+      ${TORCH_SRC_DIR}/csrc/jit/api/module_save.cpp
       ${TORCH_SRC_DIR}/csrc/utils/byte_order.cpp
     )
     if (USE_DISTRIBUTED)
@@ -570,10 +570,10 @@ if (NOT INTERN_BUILD_MOBILE OR NOT BUILD_CAFFE2_MOBILE)
 
   if (USE_CUDA)
     list(APPEND Caffe2_GPU_SRCS
+      ${TORCH_SRC_DIR}/csrc/jit/codegen/fuser/cuda/fused_kernel.cpp
       ${TORCH_SRC_DIR}/csrc/autograd/profiler_cuda.cpp
       ${TORCH_SRC_DIR}/csrc/autograd/functions/comm.cpp
       ${TORCH_SRC_DIR}/csrc/cuda/comm.cpp
-      ${TORCH_SRC_DIR}/csrc/jit/fuser/cuda/fused_kernel.cpp
       ${TORCH_SRC_DIR}/csrc/jit/tensorexpr/cuda_codegen.cpp
     )
     add_library(caffe2_nvrtc SHARED ${ATen_NVRTC_STUB_SRCS})
