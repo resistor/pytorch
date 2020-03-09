@@ -255,8 +255,7 @@ void IRPrinter::visit(const LetStmt* v) {
 }
 
 void IRPrinter::visit(const Ramp* v) {
-  emitIndent();
-  os() << "Ramp(" << v->base() << ", " << v->stride() << ", " << v->lanes()
+  os() << "Ramp(" << *v->base() << ", " << *v->stride() << ", " << v->lanes()
        << ")";
 }
 
@@ -300,7 +299,7 @@ void IRPrinter::visit(const Store* v) {
 }
 
 void IRPrinter::visit(const Broadcast* v) {
-  os() << "Broadcast(" << v->value() << ", " << v->lanes() << ")";
+  os() << "Broadcast(" << *v->value() << ", " << v->lanes() << ")";
 }
 
 void IRPrinter::visit(const IfThenElse* v) {
