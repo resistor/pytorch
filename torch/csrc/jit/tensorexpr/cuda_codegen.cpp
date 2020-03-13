@@ -506,7 +506,7 @@ void CudaCodeGen::Initialize() {
 }
 
 void CudaCodeGen::call(const std::vector<CallArg>& args) {
-  if (args.size() != buffer_args.size()) {
+  if (args.size() != buffer_args().size()) {
     throw malformed_input();
   }
 
