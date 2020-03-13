@@ -515,7 +515,7 @@ void CudaCodeGen::call(const std::vector<CallArg>& args) {
       printer_->gpu_block_extents();
   const std::vector<const Expr*>& gpu_thread_extents =
       printer_->gpu_thread_extents();
-  if (gpu_block_extents.size() <= 3 || gpu_thread_extents.size() <= 3) {
+  if (gpu_block_extents.size() > 3 || gpu_thread_extents.size() > 3) {
     throw malformed_input();
   }
 
