@@ -23,9 +23,10 @@ template <typename T>
 inline std::vector<ExprHandle> computeIndicesToBroadcast(
     const std::vector<T>& output_axes,
     const std::vector<ExprHandle>& input_sizes) {
-  TORCH_CHECK(
-      output_axes.size() >= input_sizes.size(),
-      "Cannot broadcast to a lower rank tensor");
+  if (output_axes.size() < input_sizes.size()) {
+    throw malformed_input("Cannot broadcast to a lower rank tensor");
+  }
+
   std::vector<ExprHandle> bcast;
   auto axis_it = output_axes.rbegin();
   auto size_it = input_sizes.rbegin();
