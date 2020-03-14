@@ -1150,7 +1150,10 @@ void TensorExprKernel::lowerToBackend(BackendType backendType) {
           "invalid backend type: " +
           std::to_string(static_cast<int>(backendType_)));
   }
-  codegen_ = CreateCodeGen(codegenName, stmt, params);
+
+  codegenCache_.emplace(
+      torch::get_hash(device_),
+      CreateCodeGen(codegenName, stmt, params, device_));
 }
 
 template <typename T>
@@ -1244,6 +1247,11 @@ void TensorExprKernel::pickAndCheckBackendType(
     }
     throw std::runtime_error("No tensor inputs");
   }();
+
+  if (codegenCache_.count(torch::get_hash(device))) {
+    return;
+  }
+
   BackendType backendType = BackendType::kUninitialized;
   if (device.type() == at::kCUDA) {
     backendType = kCudaCodeGen;
@@ -1277,7 +1285,7 @@ void TensorExprKernel::codeGenRun(
     case kSimpleIREval:
     case kLLVMCodeGen:
     case kCudaCodeGen:
-      codegen_->call(runArgs);
+      codegenCache_.at(torch::get_hash(device_))->call(runArgs);
       break;
     default:
       throw std::runtime_error(
