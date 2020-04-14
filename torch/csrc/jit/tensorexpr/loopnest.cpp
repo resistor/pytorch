@@ -1523,7 +1523,7 @@ void LoopNest::rfactor(For* f, const Var* reduction_var) {
   Stmt* inner = f;
   Stmt* root_for = f;
 
-	// Tracks which variables we see while traversing
+  // Tracks which variables we see while traversing
   std::set<const Var*> traced_args;
   For* target_for;
   size_t depth = 0;
@@ -1532,8 +1532,12 @@ void LoopNest::rfactor(For* f, const Var* reduction_var) {
     if (f->var() == reduction_var) {
       target_for = f;
     }
+    if (f->body()->nstmts() == 0) {
+      std::cerr << "Cannot rfactor a for loop with no body:\n" << *f << "\n";
+      return;
+    }
     if (f->body()->nstmts() != 1) {
-      std::cerr << "Cannot rfactor complex for loops\n";
+      std::cerr << "Cannot rfactor complex for loops:\n" << *f << "\n";
       return;
     }
     inner = f->body()->stmts().front();
@@ -1576,14 +1580,16 @@ void LoopNest::rfactor(For* f, const Var* reduction_var) {
     }
   }
   if (!found) {
-		std::stringstream ss;
-		for (auto& v : new_inner) {
-			ss << *v;
-			if (&v != &new_inner.back()) {
-				ss << ", ";
-			}
-		}
-    std::cerr << "Couldn't find target reduction var " << *reduction_var << " in the reduce operation, which reduces over " << ss.str() << "\n";
+    std::stringstream ss;
+    for (auto& v : new_inner) {
+      ss << *v;
+      if (&v != &new_inner.back()) {
+        ss << ", ";
+      }
+    }
+    std::cerr << "Couldn't find target reduction var " << *reduction_var
+              << " in the reduce operation, which reduces over " << ss.str()
+              << "\n";
     return;
   }
   new_outer.emplace_back(reduction_var);
@@ -1596,10 +1602,13 @@ void LoopNest::rfactor(For* f, const Var* reduction_var) {
       new_outer,
       new_inner);
 
-	auto second_reduce_load_indices = reduce_op->output_args();
+  auto second_reduce_load_indices = reduce_op->output_args();
   second_reduce_load_indices.emplace_back(reduction_var);
   auto second_reduce_load = ExprHandle(new Load(
-      reduce_op->body().dtype(), tmp_buf, second_reduce_load_indices, new IntImm(1)));
+      reduce_op->body().dtype(),
+      tmp_buf,
+      second_reduce_load_indices,
+      new IntImm(1)));
   auto second_reduce = new ReduceOp(
       old_acc,
       reduce_op->initializer(),
@@ -1624,11 +1633,12 @@ void LoopNest::rfactor(For* f, const Var* reduction_var) {
   // variables.
   SwapReduce sr(first_reduce);
   auto root_block = dynamic_cast<Block*>(root_stmt());
-	auto parent_block = dynamic_cast<Block*>(root_for->get_parent());
-	if (!parent_block) {
-		std::cerr << "Cannot rfactor a loop whose parent is not a block.\n";
-	}
-  auto res = parent_block->replace_stmt(root_for, root_for->accept_mutator(&sr));
+  auto parent_block = dynamic_cast<Block*>(root_for->get_parent());
+  if (!parent_block) {
+    std::cerr << "Cannot rfactor a loop whose parent is not a block.\n";
+  }
+  auto res =
+      parent_block->replace_stmt(root_for, root_for->accept_mutator(&sr));
   if (!res) {
     std::cerr << "Couldn't find target loop within parent block of loop nest\n";
     return;
@@ -1636,12 +1646,12 @@ void LoopNest::rfactor(For* f, const Var* reduction_var) {
 
   // From this point forward any errors cannot be handled silently.
   std::vector<const Expr*> second_indices = {second_reduce->output_args()};
-  For* new_for = For::make(
-      VarHandle(target_for->var()),
-      ExprHandle(target_for->start()),
-      ExprHandle(target_for->stop()),
+  For* new_for = new For(
+      target_for->var(),
+      target_for->start(),
+      target_for->stop(),
       new Store(second_buf, second_indices, second_reduce, new IntImm(1)),
-			target_for->loop_options());
+      target_for->loop_options());
   parent_block->append_stmt(new_for);
 
   auto loop_bounds_info = inferBounds(root_stmt_);
