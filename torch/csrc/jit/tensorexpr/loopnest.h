@@ -48,7 +48,10 @@ class TORCH_API LoopNest {
   // computation itself, this transformation inserts Alloc/Free statements for
   // the temporary buffer used in the computation.
   void computeAt(Stmt* s, For* at);
-  void rfactor(For* f, const Var* reduction_var);
+  void rfactor(
+      const Expr* f,
+      const Var* reduction_var,
+      Block* insertion_point = nullptr /* optional */);
 
  private:
   std::vector<Tensor*> findAllNeededTensors(

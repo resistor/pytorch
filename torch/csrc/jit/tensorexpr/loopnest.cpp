@@ -1519,34 +1519,70 @@ class SwapReduce : public IRMutator {
   ReduceOp* new_reduce_;
 };
 
-void LoopNest::rfactor(For* f, const Var* reduction_var) {
-  Stmt* inner = f;
-  Stmt* root_for = f;
+class StoreFinder : public IRVisitor {
+ public:
+  StoreFinder(Expr* t) : target_(t) {}
+  Store* store() {
+    return const_cast<Store*>(store_);
+  }
+  void visit(const Store* s) {
+    if (s->value() == target_) {
+      store_ = s;
+    }
+    IRVisitor::visit(s);
+  }
 
-  // Tracks which variables we see while traversing
-  std::set<const Var*> traced_args;
-  For* target_for;
-  size_t depth = 0;
-  do {
-    traced_args.insert(f->var());
-    if (f->var() == reduction_var) {
-      target_for = f;
-    }
-    if (f->body()->nstmts() == 0) {
-      std::cerr << "Cannot rfactor a for loop with no body:\n" << *f << "\n";
-      return;
-    }
-    if (f->body()->nstmts() != 1) {
-      std::cerr << "Cannot rfactor complex for loops:\n" << *f << "\n";
-      return;
-    }
-    inner = f->body()->stmts().front();
-  } while ((f = dynamic_cast<For*>(inner)));
+ private:
+  const Store* store_;
+  Expr* target_;
+};
 
-  auto* expr = dynamic_cast<Store*>(inner)->value();
-  const ReduceOp* reduce_op;
-  if (!(reduce_op = dynamic_cast<const ReduceOp*>(expr))) {
-    std::cerr << "Cannot rfactor " << *expr << "\n";
+void LoopNest::rfactor(
+    const Expr* r,
+    const Var* reduction_var,
+    Block* insertion_point) {
+  ReduceOp* reduce_op = dynamic_cast<ReduceOp*>(const_cast<Expr*>(r));
+  if (!reduce_op) {
+    std::cerr << "Must pass in reduce op\n";
+    return;
+  }
+  StoreFinder sf(reduce_op);
+  root_stmt()->accept(&sf);
+  Stmt* st = sf.store();
+  if (!st) {
+    std::cerr << "Can't find reduction to rfactor " << *reduce_op << "\n";
+    return;
+  }
+
+  For* root_for = nullptr;
+  For* target_for = nullptr;
+  std::set<const Var*> reduce_args = {reduce_op->reduce_args().begin(),
+                                      reduce_op->reduce_args().end()};
+  while (st) {
+    auto f = dynamic_cast<For*>(st);
+    if (f) {
+      if (f->var() == reduction_var) {
+        target_for = f;
+      }
+      if (reduce_args.count(f->var())) {
+        reduce_args.erase(f->var());
+        root_for = f;
+      }
+    }
+    st = st->get_parent();
+  };
+  if (!target_for) {
+    std::cerr << "Couldn't find loop over variable: " << *reduction_var << "\n";
+    return;
+  }
+
+  if (reduce_args.size()) {
+    std::cerr << "Couldn't find all variables associated with the reduction.\n";
+    return;
+  }
+
+  if (!root_for) {
+    std::cerr << "Couldn't deduce the root For loop for this rfactor\n";
     return;
   }
 
@@ -1555,13 +1591,6 @@ void LoopNest::rfactor(For* f, const Var* reduction_var) {
     std::cerr
         << "Cannot rfactor reduction with a single reduce variable.  Use split first.\n";
     return;
-  }
-  for (auto& dim : dims) {
-    if (!traced_args.count(dim)) {
-      std::cerr << "Cannot rfactor: found unique Var in ReduceOp " << *dim
-                << "\n";
-      return;
-    }
   }
 
   std::vector<const Expr*> new_dims = {};
@@ -1617,12 +1646,6 @@ void LoopNest::rfactor(For* f, const Var* reduction_var) {
       reduce_op->output_args(),
       {reduction_var});
 
-  auto second_buf = dynamic_cast<const Buf*>(second_reduce->accumulator());
-  if (!second_buf) {
-    std::cerr << "Reduction accumulator should be a buf\n";
-    return;
-  }
-
   // 1) replace target for loop (which is a reduction loop)
   // with an iterative for loop by removing the reduction var from the
   // innermost op and creating a new temporary output buffer.
@@ -1636,23 +1659,42 @@ void LoopNest::rfactor(For* f, const Var* reduction_var) {
   auto parent_block = dynamic_cast<Block*>(root_for->get_parent());
   if (!parent_block) {
     std::cerr << "Cannot rfactor a loop whose parent is not a block.\n";
+    return;
   }
-  auto res =
-      parent_block->replace_stmt(root_for, root_for->accept_mutator(&sr));
+  auto new_root_for = root_for->accept_mutator(&sr);
+  auto res = parent_block->replace_stmt(root_for, new_root_for);
   if (!res) {
     std::cerr << "Couldn't find target loop within parent block of loop nest\n";
     return;
   };
 
+  if (insertion_point && insertion_point == root_for->body()) {
+    insertion_point = dynamic_cast<For*>(new_root_for)->body();
+  } else if (insertion_point) {
+    throw std::runtime_error("TODO: enable non-root insertion points");
+  }
+
   // From this point forward any errors cannot be handled silently.
+  auto second_buf = dynamic_cast<const Buf*>(second_reduce->accumulator());
   std::vector<const Expr*> second_indices = {second_reduce->output_args()};
-  For* new_for = new For(
-      target_for->var(),
-      target_for->start(),
-      target_for->stop(),
-      new Store(second_buf, second_indices, second_reduce, new IntImm(1)),
-      target_for->loop_options());
-  parent_block->append_stmt(new_for);
+  if (insertion_point &&
+      dynamic_cast<For*>(insertion_point->get_parent())->var() ==
+          target_for->var()) {
+    insertion_point->append_stmt(
+        new Store(second_buf, second_indices, second_reduce, new IntImm(1)));
+  } else {
+    For* new_for = new For(
+        target_for->var(),
+        target_for->start(),
+        target_for->stop(),
+        new Store(second_buf, second_indices, second_reduce, new IntImm(1)),
+        target_for->loop_options());
+    if (insertion_point) {
+      insertion_point->append_stmt(new_for);
+    } else {
+      parent_block->append_stmt(new_for);
+    }
+  }
 
   auto loop_bounds_info = inferBounds(root_stmt_);
   found = false;
