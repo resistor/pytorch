@@ -583,5 +583,178 @@ void testReorderedReductionInitializer() {
   }
 }
 
+void testReduceRfactor() {
+  KernelScope kernel_scope;
+
+  const int M = 10;
+  const int N = 10;
+  VarHandle m("m", kInt);
+  VarHandle n("n", kInt);
+
+  Buffer b(BufHandle("b", {m, n}), kFloat);
+  std::vector<float> in(M * N);
+  for (int j = 0; j < M * N; ++j) {
+    in[j] = j;
+  }
+
+  std::vector<float> intermediate(10, -2.f);
+  std::vector<float> out(1, -1.f);
+
+  Tensor* c = Reduce("sum", {}, Sum(), b, {{m, "m"}, {n, "n"}});
+  LoopNest loop({c});
+  std::vector<For*> loops = loop.getLoopStmtsFor(c);
+  auto v = loops.at(1)->var();
+  loop.rfactor(loops.at(0), v);
+  loop.prepareForCodegen();
+  Stmt* s = loop.root_stmt();
+  s = IRSimplifier::simplify(s);
+
+  SimpleIREvaluator cg(s, {b, c, m, n});
+
+  cg.call({in, out, M, N});
+  ASSERT_EQ(out[0], 4950);
+}
+
+void testReduce3DRfactor() {
+  KernelScope kernel_scope;
+
+  const int M = 10;
+  const int N = 10;
+  const int K = 10;
+  VarHandle m("m", kInt);
+  VarHandle n("n", kInt);
+  VarHandle k("k", kInt);
+
+  Buffer b(BufHandle("b", {m, n, k}), kFloat);
+  std::vector<float> in(M * N * K);
+  for (int j = 0; j < M * N * K; ++j) {
+    in[j] = j;
+  }
+
+  std::vector<float> intermediate(10, -2.f);
+  std::vector<float> out(1, -1.f);
+
+  Tensor* c = Reduce("sum", {}, Sum(), b, {{m, "m"}, {n, "n"}, {k, "k"}});
+  LoopNest loop({c});
+  std::vector<For*> loops = loop.getLoopStmtsFor(c);
+  auto v = loops.at(1)->var();
+  loop.rfactor(loops.at(0), v);
+  loop.prepareForCodegen();
+  Stmt* s = loop.root_stmt();
+  s = IRSimplifier::simplify(s);
+
+  SimpleIREvaluator cg(s, {b, c, m, n, k});
+
+  cg.call({in, out, M, N, K});
+  ASSERT_EQ(out[0], 499500);
+}
+
+void testReduce3DRfactor2() {
+  KernelScope kernel_scope;
+
+  const int M = 10;
+  const int N = 10;
+  const int K = 10;
+  VarHandle m("m", kInt);
+  VarHandle n("n", kInt);
+  VarHandle k("k", kInt);
+
+  Buffer b(BufHandle("b", {m, n, k}), kFloat);
+  std::vector<float> in(M * N * K);
+  for (int j = 0; j < M * N * K; ++j) {
+    in[j] = j;
+  }
+
+  std::vector<float> intermediate(10, -2.f);
+  std::vector<float> out(1, -1.f);
+
+  Tensor* c = Reduce("sum", {}, Sum(), b, {{m, "m"}, {n, "n"}, {k, "k"}});
+  LoopNest loop({c});
+  std::vector<For*> loops = loop.getLoopStmtsFor(c);
+  auto v = loops.at(2)->var();
+  loop.rfactor(loops.at(0), v);
+  loop.prepareForCodegen();
+  Stmt* s = loop.root_stmt();
+  s = IRSimplifier::simplify(s);
+
+  SimpleIREvaluator cg(s, {b, c, m, n, k});
+
+  cg.call({in, out, M, N, K});
+  ASSERT_EQ(out[0], 499500);
+}
+
+void testReduce3DRfactor3() {
+  KernelScope kernel_scope;
+
+  const int M = 10;
+  const int N = 10;
+  const int K = 10;
+  VarHandle m("m", kInt);
+  VarHandle n("n", kInt);
+  VarHandle k("k", kInt);
+
+  Buffer b(BufHandle("b", {m, n, k}), kFloat);
+  std::vector<float> in(M * N * K);
+  for (int j = 0; j < M * N * K; ++j) {
+    in[j] = j;
+  }
+
+  std::vector<float> intermediate(10, -2.f);
+  std::vector<float> out(1, -1.f);
+
+  Tensor* c = Reduce("sum", {}, Sum(), b, {{m, "m"}, {n, "n"}, {k, "k"}});
+  LoopNest loop({c});
+  std::vector<For*> loops = loop.getLoopStmtsFor(c);
+  auto v = loops.at(0)->var();
+  loop.rfactor(loops.at(0), v);
+  loop.prepareForCodegen();
+  Stmt* s = loop.root_stmt();
+  s = IRSimplifier::simplify(s);
+
+  SimpleIREvaluator cg(s, {b, c, m, n, k});
+  cg.call({in, out, M, N, K});
+  ASSERT_EQ(out[0], 499500);
+}
+
+void testReduce3DRfactorRepeated() {
+  KernelScope kernel_scope;
+
+  const int M = 10;
+  const int N = 10;
+  const int K = 10;
+  VarHandle m("m", kInt);
+  VarHandle n("n", kInt);
+  VarHandle k("k", kInt);
+
+  Buffer b(BufHandle("b", {m, n, k}), kFloat);
+  std::vector<float> in(M * N * K);
+  for (int j = 0; j < M * N * K; ++j) {
+    in[j] = j;
+  }
+
+  std::vector<float> intermediate(10, -2.f);
+  std::vector<float> out(1, -1.f);
+
+  Tensor* c = Reduce("sum", {}, Sum(), b, {{m, "m"}, {n, "n"}, {k, "k"}});
+  LoopNest loop({c});
+  std::vector<For*> loops = loop.getLoopStmtsFor(c);
+  auto v0 = loops.at(1)->var(); // n
+  loop.rfactor(loops.at(0), v0);
+
+  loop = LoopNest({c});
+  loops = loop.getLoopStmtsFor(c);
+
+  auto v1 = loops.at(2)->var(); // k
+  loop.rfactor(loops.at(0), v1);
+  loop.prepareForCodegen();
+  Stmt* s = loop.root_stmt();
+  s = IRSimplifier::simplify(s);
+
+  SimpleIREvaluator cg(s, {b, c, m, n, k});
+
+  cg.call({in, out, M, N, K});
+  ASSERT_EQ(out[0], 499500);
+}
+
 } // namespace jit
 } // namespace torch

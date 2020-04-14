@@ -805,7 +805,7 @@ void LoopNest::computeInlineWithRandom(Stmt* s) {
 Stmt* LoopNest::insertAllocFree(Stmt* stmt) {
   // Add allocs and frees for intermediate buffers at the global level.
   // TODO: move allocs and frees to the imemediate areas to reuse buffers.
-  if (intermediate_tensors_.size() == 0ULL) {
+  if (intermediate_tensors_.size() == 0ULL && temp_bufs_.size() == 0ULL) {
     return stmt;
   }
 
@@ -1402,6 +1402,170 @@ void LoopNest::computeAt(Stmt* s, For* f) {
   // Mark the new temp buffer as requiring an alloc (it will be inserted as a
   // part of prepareForCodegen).
   temp_bufs_.emplace_back(std::make_pair(temp_buf, st->value()->dtype()));
+}
+
+class SwapReduce : public IRMutator {
+ public:
+  SwapReduce(ReduceOp* new_reduce) : new_reduce_(new_reduce) {}
+
+  Stmt* mutate(const Store* v) override {
+    if (dynamic_cast<const ReduceOp*>(v->value())) {
+      auto buf = new_reduce_->accumulator();
+      return new Store(
+          buf, new_reduce_->output_args(), new_reduce_, new IntImm(1));
+    }
+    return IRMutator::mutate(v);
+  }
+
+ private:
+  ReduceOp* new_reduce_;
+};
+
+void LoopNest::rfactor(For* f, const Var* reduction_var) {
+  Stmt* inner = f;
+  Stmt* root_for = f;
+
+	// Tracks which variables we see while traversing
+  std::set<const Var*> traced_args;
+  For* target_for;
+  size_t depth = 0;
+  do {
+    traced_args.insert(f->var());
+    if (f->var() == reduction_var) {
+      target_for = f;
+    }
+    if (f->body()->nstmts() != 1) {
+      std::cerr << "Cannot rfactor complex for loops\n";
+      return;
+    }
+    inner = f->body()->stmts().front();
+  } while ((f = dynamic_cast<For*>(inner)));
+
+  auto* expr = dynamic_cast<Store*>(inner)->value();
+  const ReduceOp* reduce_op;
+  if (!(reduce_op = dynamic_cast<const ReduceOp*>(expr))) {
+    std::cerr << "Cannot rfactor " << *expr << "\n";
+    return;
+  }
+
+  auto& dims = reduce_op->reduce_args();
+  if (dims.size() < 2) {
+    std::cerr
+        << "Cannot rfactor reduction with a single reduce variable.  Use split first.\n";
+    return;
+  }
+  for (auto& dim : dims) {
+    if (!traced_args.count(dim)) {
+      std::cerr << "Cannot rfactor: found unique Var in ReduceOp " << *dim
+                << "\n";
+      return;
+    }
+  }
+
+  std::vector<const Expr*> new_dims = {};
+  Buf* tmp_buf = new Buf(new Var("tmp_buf", kHandle), new_dims);
+
+  auto old_acc = reduce_op->accumulator();
+  auto old_init_expr = reduce_op->initializer();
+  auto new_inner = reduce_op->reduce_args();
+  auto new_outer = reduce_op->output_args();
+  bool found = false;
+  for (size_t i = 0; i < new_inner.size(); ++i) {
+    if (new_inner[i] == reduction_var) {
+      new_inner.erase(new_inner.begin() + i);
+      found = true;
+      break;
+    }
+  }
+  if (!found) {
+		std::stringstream ss;
+		for (auto& v : new_inner) {
+			ss << *v;
+			if (&v != &new_inner.back()) {
+				ss << ", ";
+			}
+		}
+    std::cerr << "Couldn't find target reduction var " << *reduction_var << " in the reduce operation, which reduces over " << ss.str() << "\n";
+    return;
+  }
+  new_outer.emplace_back(reduction_var);
+
+  auto first_reduce = new ReduceOp(
+      tmp_buf,
+      old_init_expr,
+      reduce_op->body(),
+      reduce_op->interaction(),
+      new_outer,
+      new_inner);
+
+	auto second_reduce_load_indices = reduce_op->output_args();
+  second_reduce_load_indices.emplace_back(reduction_var);
+  auto second_reduce_load = ExprHandle(new Load(
+      reduce_op->body().dtype(), tmp_buf, second_reduce_load_indices, new IntImm(1)));
+  auto second_reduce = new ReduceOp(
+      old_acc,
+      reduce_op->initializer(),
+      second_reduce_load,
+      reduce_op->interaction(),
+      reduce_op->output_args(),
+      {reduction_var});
+
+  auto second_buf = dynamic_cast<const Buf*>(second_reduce->accumulator());
+  if (!second_buf) {
+    std::cerr << "Reduction accumulator should be a buf\n";
+    return;
+  }
+
+  // 1) replace target for loop (which is a reduction loop)
+  // with an iterative for loop by removing the reduction var from the
+  // innermost op and creating a new temporary output buffer.
+  //
+  // 2) append a clone of the target for loop (which reduces over multiple
+  // variables) with a reduce over only its var by replacing the reduction op
+  // buffer input with the temporary output buffer and removing other reductions
+  // variables.
+  SwapReduce sr(first_reduce);
+  auto root_block = dynamic_cast<Block*>(root_stmt());
+	auto parent_block = dynamic_cast<Block*>(root_for->get_parent());
+	if (!parent_block) {
+		std::cerr << "Cannot rfactor a loop whose parent is not a block.\n";
+	}
+  auto res = parent_block->replace_stmt(root_for, root_for->accept_mutator(&sr));
+  if (!res) {
+    std::cerr << "Couldn't find target loop within parent block of loop nest\n";
+    return;
+  };
+
+  // From this point forward any errors cannot be handled silently.
+  std::vector<const Expr*> second_indices = {second_reduce->output_args()};
+  For* new_for = For::make(
+      VarHandle(target_for->var()),
+      ExprHandle(target_for->start()),
+      ExprHandle(target_for->stop()),
+      new Store(second_buf, second_indices, second_reduce, new IntImm(1)),
+			target_for->loop_options());
+  parent_block->append_stmt(new_for);
+
+  auto loop_bounds_info = inferBounds(root_stmt_);
+  found = false;
+  for (const TensorAccessBoundsInfo& p : loop_bounds_info) {
+    if (p.buf == tmp_buf) {
+      found = true;
+      std::vector<const Expr*> dims;
+      for (size_t i = 0; i < p.start.size(); i++) {
+        const Expr* dim = IRSimplifier::simplify(
+            new Add(new Sub(p.stop[i], p.start[i]), new IntImm(1)));
+        dims.push_back(dim);
+      }
+      tmp_buf->set_dims(dims);
+    }
+  }
+  if (!found) {
+    throw std::runtime_error(
+        "Hit undefined behavior in rfactor -- couldn't infer bounds.");
+  }
+
+  temp_bufs_.emplace_back(std::make_pair(tmp_buf, reduce_op->body().dtype()));
 }
 
 } // namespace tensorexpr

@@ -57,6 +57,11 @@ namespace jit {
   _(ReduceAnyAll)                           \
   _(ReduceMatmul2D)                         \
   _(ReduceRfactorLike)                      \
+  _(ReduceRfactor)                          \
+  _(Reduce3DRfactor)                        \
+  _(Reduce3DRfactor2)                       \
+  _(Reduce3DRfactor3)                       \
+  _(Reduce3DRfactorRepeated)                \
   _(SplitReduceAxis)                        \
   _(SplitNonReduceAxis)                     \
   _(TypeTest01)                             \
