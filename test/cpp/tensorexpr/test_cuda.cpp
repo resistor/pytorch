@@ -9,6 +9,7 @@
 #include "test/cpp/tensorexpr/padded_buffer.h"
 #include "torch/csrc/jit/tensorexpr/buffer.h"
 #include "torch/csrc/jit/tensorexpr/cuda_codegen.h"
+#include "torch/csrc/jit/tensorexpr/ir_simplifier.h"
 #include "torch/csrc/jit/tensorexpr/loopnest.h"
 #include "torch/csrc/jit/tensorexpr/tensor.h"
 
@@ -772,6 +773,67 @@ void testCudaLocalMemReduce_1() {
   For* loop_k = For::make(k, 0, 1, block_k_stmt, block_idx_opt);
 
   CudaCodeGen cuda_cg(loop_k, a, b);
+  PaddedBuffer<float> a_v(1, M, N, "a_v");
+  PaddedBuffer<float> b_v(1, "b_v");
+  PaddedBuffer<float> b_ref(1, "b_ref");
+
+  b_ref(0) = 0;
+  for (int i = 0; i < M; i++) {
+    for (int j = 0; j < N; j++) {
+      int v = i + j;
+      a_v(0, i, j) = v;
+      b_ref(0) += v;
+    }
+  }
+
+  float* a_dev = nullptr;
+  cudaMalloc(&a_dev, kTotalSize * sizeof(float));
+  cudaMemcpy(
+      a_dev, a_v.data(), kTotalSize * sizeof(float), cudaMemcpyHostToDevice);
+  float* b_dev = nullptr;
+  cudaMalloc(&b_dev, 1 * sizeof(float));
+  cudaDeviceSynchronize();
+
+  cuda_cg(a_dev, b_dev);
+
+  cudaDeviceSynchronize();
+  cudaMemcpy(b_v.data(), b_dev, 1 * sizeof(float), cudaMemcpyDeviceToHost);
+  cudaDeviceSynchronize();
+
+  ExpectAllNear(b_v, b_ref, 1e-5);
+
+  cudaFree(a_dev);
+  cudaFree(b_dev);
+}
+
+void testCudaRfactorSharedMemReduce_1() {
+  KernelScope kernel_scope;
+
+  int M = 128;
+  int N = 64;
+  const int kTotalSize = M * N;
+
+  Buffer a("a", kFloat, {1, M, N});
+
+  // TODO: why doesn't implicit vector<DimArg> work?
+  std::vector<DimArg> axis = {DimArg(1)};
+  std::vector<DimArg> reduce_axis = {DimArg(M), DimArg(N)};
+  Tensor* b = Reduce("sum", axis, Sum(), a, reduce_axis);
+  LoopNest loop({b});
+  std::vector<For*> loops = loop.getLoopStmtsFor(b);
+  For* loop_k = loops.at(0);
+  For* loop_m = loops.at(1);
+  For* loop_n = loops.at(2);
+  loop.setGPUBlockIndex(loop_k, 0);
+  loop.setGPUThreadIndex(loop_n, 0);
+  loop.rfactor(loop_m, loop_n->var());
+  loop.prepareForCodegen();
+  Stmt* s = loop.root_stmt();
+  s = IRSimplifier::simplify(s);
+
+  std::cerr << "XXXQQQ: s: " << (*s) << std::endl;
+  CudaCodeGen cuda_cg(s, {a, b});
+
   PaddedBuffer<float> a_v(1, M, N, "a_v");
   PaddedBuffer<float> b_v(1, "b_v");
   PaddedBuffer<float> b_ref(1, "b_ref");

@@ -10,7 +10,7 @@
 #include <torch/csrc/jit/tensorexpr/execution_counter.h>
 #include <torch/csrc/jit/tensorexpr/ir_simplifier.h>
 
-#define DEBUG_PRINT 0
+#define DEBUG_PRINT 1
 
 namespace torch {
 namespace jit {
