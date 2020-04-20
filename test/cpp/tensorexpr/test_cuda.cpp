@@ -880,17 +880,22 @@ void testCudaRfactorLocalMemReduce_1() {
   std::vector<DimArg> axis = {DimArg(1)};
   std::vector<DimArg> reduce_axis = {DimArg(M), DimArg(N)};
   Tensor* b = Reduce("sum", axis, Sum(), a, reduce_axis);
-  LoopNest loop({b});
-  std::vector<For*> loops = loop.getLoopStmtsFor(b);
+  LoopNest loopnest({b});
+  std::vector<For*> loops = loopnest.getLoopStmtsFor(b);
   For* loop_k = loops.at(0);
   For* loop_m = loops.at(1);
   For* loop_n = loops.at(2);
-  loop.setGPUBlockIndex(loop_k, 0);
-  loop.setGPUThreadIndex(loop_n, 0);
-  loop.reorderAxis(b, loop_m, loop_n);
-  loop.rfactor(loop_n, loop_n->var());
-  loop.prepareForCodegen();
-  Stmt* s = loop.root_stmt();
+  loopnest.setGPUBlockIndex(loop_k, 0);
+  loopnest.setGPUThreadIndex(loop_n, 0);
+  loopnest.reorderAxis(b, loop_n, loop_m);
+  loops = loopnest.getLoopStmtsFor(b);
+  loop_k = loops.at(0);
+  loop_n = loops.at(1);
+  loop_m = loops.at(2);
+  // Case-III reductions
+  loopnest.rfactor(loop_m, loop_n->var());
+  loopnest.prepareForCodegen();
+  Stmt* s = loopnest.root_stmt();
   s = IRSimplifier::simplify(s);
 
   std::cerr << "XXXQQQ: s: " << (*s) << std::endl;
